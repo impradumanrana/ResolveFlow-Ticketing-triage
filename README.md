@@ -14,67 +14,149 @@ ResolveFlow classifies each ticket, applies deterministic safety controls, searc
 **The app never sends a message to a customer.** `AUTO_RESOLVE` produces a review-ready draft, nothing more.
 
 ---
+## Setup
 
-## Quick start
+### Before you start
 
-Python 3.11+ required (developed on 3.14.5).
+| You need | Notes |
+|---|---|
+| **An OpenAI API key** | Required. Classification *and* embeddings both call OpenAI. Get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys). |
+| **Credit on that key** | A key with a $0 balance returns errors, and the app will escalate every ticket. Check your billing page. |
+| **Docker** *or* **Python 3.11+** | Pick one path below. Docker is the fewest moving parts. |
+
+Running the app spends a small amount of OpenAI credit — a few cents for the demo. The test suite spends nothing; it never touches the network.
+
+### Get the code
+
+```bash
+git clone https://github.com/impradumanrana/ResolveFlow-Ticketing-triage.git
+cd ResolveFlow-Ticketing-triage
+```
+
+### Add your API key
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` in any editor and replace the placeholder:
+
+```env
+OPENAI_API_KEY=sk-your-real-key-here
+```
+
+`.env` is git-ignored and is never copied into the Docker image.
+
+---
+
+### Option A — Docker (recommended)
+
+One command, no Python setup, dependencies pinned to a verified lockfile:
+
+```bash
+docker compose up --build
+```
+
+First build takes a few minutes. When you see `You can now view your Streamlit app`, open **<http://localhost:8501>**.
+
+To stop: `Ctrl+C`, then `docker compose down`.
+
+### Option B — Python
+
+**macOS / Linux**
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-cp .env.example .env        # then add your OpenAI API key
 streamlit run app/dashboard.py
 ```
 
-Open the printed local URL. Keep **Guided demo · 6 tickets** selected, click **Load sample batch**, then open T-001 and T-002 to see the contrast between grounded auto-resolution and safety-first escalation.
+**Windows (PowerShell)**
 
-A valid OpenAI API key is required: both classification and dense embeddings use OpenAI. The automated tests use explicit network-free fixtures. Secrets are git-ignored.
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -e .
+streamlit run app/dashboard.py
+```
+
+Streamlit prints a local URL — open it.
+
+---
+
+### Confirm it is working
+
+In the left sidebar you should see:
+
+```
+AI processing
+● OpenAI active
+Model: gpt-5.6-luna          ← whichever model you set in .env
+Support knowledge base: Ready · 15 articles
+```
+
+If it says **OpenAI unavailable**, your key was not picked up — see Troubleshooting below.
+
+Then take the 30-second tour:
+
+1. Keep **Guided demo · 6 tickets** selected and click **Load sample batch**.
+2. Open **T-001** — auto-resolved with a cited article and the real MCP request visible in its trace.
+3. Open **T-002** — escalated *despite* a relevant article match, because urgency, anger, and payment-risk controls override it.
 
 ### Other commands
 
 ```bash
+pytest -q                                  # full suite, 43 tests, no network needed
 python -m app.cli                          # CLI smoke run
 python -m app.eval                         # 15-case golden evaluation
 python scripts/evaluate_company_sample.py  # live 30-article company corpus run
-pytest -q                                  # full suite (43 tests)
 ```
 
-`make run`, `make test`, and `make eval` are equivalent shortcuts.
+`make run`, `make test`, and `make eval` are shortcuts for the common ones.
 
----
-
-## Run with Docker
-
-The image pins every dependency to a verified lockfile, so a pull resolves to the exact set the test suite passed on — no resolution step, no version drift.
-
-```bash
-cp .env.example .env        # add your real OPENAI_API_KEY
-docker compose up --build
-```
-
-Then open <http://localhost:8501>.
-
-Compose refuses to start if `OPENAI_API_KEY` is unset, with a message saying so, rather than launching a container that silently escalates every ticket. Your `.env` is never copied into the image — it is read at run time and `.dockerignore` excludes it.
-
-Without Compose:
-
-```bash
-docker build -t resolveflow-ai .
-docker run -p 8501:8501 --env-file .env   -v resolveflow-data:/opt/resolveflow/app/data resolveflow-ai
-```
-
-Run the suite inside the image:
+With Docker, run the suite inside the image:
 
 ```bash
 docker run --rm resolveflow-ai python -m pytest -q
 ```
 
+---
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| Sidebar shows **OpenAI unavailable** | The key is missing, still the placeholder, or unfunded. Check `.env`, then fully restart the app — the key is read once at startup. |
+| `RuntimeError: OPENAI_API_KEY is required to create knowledge embeddings` | A bare `docker run` with no key. Pass it: `docker run -p 8501:8501 --env-file .env resolveflow-ai`. |
+| `ImportError: cannot import name ...` after editing code | A running Streamlit server cached the old module. Stop it and start it again; editing alone is not enough. |
+| `Port 8501 is already in use` | Another copy is running. Use a different port: `streamlit run app/dashboard.py --server.port 8502`. |
+| Knowledge base is empty after a Docker restart | You ran without the named volume. Use `docker compose up`, or add `-v resolveflow-data:/opt/resolveflow/app/data`. |
+| `error: Multiple top-level packages discovered` on `pip install -e .` | You are on an old commit. Pull the latest — this is fixed. |
+| Deployed on Streamlit Community Cloud and the key is ignored | Put `OPENAI_API_KEY` at the **root** of your secrets, not under a `[section]`. Sectioned secrets never reach `os.environ`, which is what this app reads. |
+
+---
+
+### Advanced Docker usage
+
+Build and run without Compose:
+
+```bash
+docker build -t resolveflow-ai .
+docker run -p 8501:8501 --env-file .env \
+  -v resolveflow-data:/opt/resolveflow/app/data resolveflow-ai
+```
+
+Compose refuses to start when `OPENAI_API_KEY` is unset, with a message saying so, rather than launching a container that silently escalates every ticket.
+
 **The named volume matters.** SQLite (`knowledge.db`) and the Qdrant index live in `/opt/resolveflow/app/data`. Mount it and ingested knowledge survives restarts; omit it and every restart reseeds the 15 starter articles from `app/fixtures/`, re-embedding them through the OpenAI API.
 
-On first boot against an empty volume the app seeds those 15 starters and embeds them, which takes a few seconds and costs a small number of embedding calls.
+On first boot against an empty volume the app seeds those 15 starters and embeds them — a few seconds and a small number of embedding calls.
 
 The container runs as an unprivileged user (`uid 10001`) and declares a `HEALTHCHECK` against `/_stcore/health`. The image is ~1 GB, most of it `pyarrow`, `numpy`, `pandas`, and `grpcio`.
+
+---
+
 
 
 ---
@@ -217,7 +299,7 @@ tests/               43 automated tests
 
 ```env
 OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.6-luna
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_EMBEDDING_DIMENSIONS=1536
 QDRANT_COLLECTION=resolveflow_knowledge

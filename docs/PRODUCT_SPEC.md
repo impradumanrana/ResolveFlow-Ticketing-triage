@@ -43,7 +43,7 @@ In every unsafe case the system routes to `CLARIFY` or `ESCALATE`. It never gues
 
 ```env
 OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-5.6-luna
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_EMBEDDING_DIMENSIONS=1536
 QDRANT_COLLECTION=resolveflow_knowledge
