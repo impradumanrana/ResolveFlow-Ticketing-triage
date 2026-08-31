@@ -1,0 +1,107 @@
+[
+  {
+    "article_id": "KB-001",
+    "title": "Password reset help",
+    "category": "technical",
+    "excerpt": "Use the reset link, verify your email, and create a new password with at least 12 characters.",
+    "keywords": ["password", "reset", "login", "forgot", "email"]
+  },
+  {
+    "article_id": "KB-002",
+    "title": "Two-factor authentication setup",
+    "category": "technical",
+    "excerpt": "Enable 2FA from the security settings page and use an authenticator app for login verification.",
+    "keywords": ["2fa", "authentication", "code", "login", "security"]
+  },
+  {
+    "article_id": "KB-003",
+    "title": "Billing invoice questions",
+    "category": "billing",
+    "excerpt": "Invoices are emailed after purchase. If you need a duplicate, share the order ID or invoice number.",
+    "keywords": ["invoice", "billing", "charge", "order", "duplicate"]
+  },
+  {
+    "article_id": "KB-004",
+    "title": "Refund policy",
+    "category": "billing",
+    "excerpt": "Refunds are processed within 5-10 business days after approval for eligible purchases.",
+    "keywords": ["refund", "money back", "chargeback", "eligible", "billing"]
+  },
+  {
+    "article_id": "KB-005",
+    "title": "Account recovery steps",
+    "category": "account",
+    "excerpt": "Use the account recovery flow to reset your password and verify your recovery email.",
+    "keywords": ["account", "recovery", "recovery email", "locked out"]
+  },
+  {
+    "article_id": "KB-006",
+    "title": "App crashes on startup",
+    "category": "technical",
+    "excerpt": "Clear the app cache and reinstall the latest version if the app crashes during startup.",
+    "keywords": ["crash", "startup", "app", "install", "cache"]
+  },
+  {
+    "article_id": "KB-007",
+    "title": "Subscription cancellation",
+    "category": "billing",
+    "excerpt": "Cancel from your account settings before the next billing cycle if you want to stop recurring charges.",
+    "keywords": ["cancel", "subscription", "trial", "billing cycle", "recurring"]
+  },
+  {
+    "article_id": "KB-008",
+    "title": "Payment failure troubleshooting",
+    "category": "billing",
+    "excerpt": "Payment failures can happen if the card is expired or the bank blocks the transaction; try another payment method.",
+    "keywords": ["payment", "failed", "declined", "card", "transaction"]
+  },
+  {
+    "article_id": "KB-009",
+    "title": "Account takeover protection",
+    "category": "account",
+    "excerpt": "If you notice unauthorized access, reset your password immediately and contact support for a security review.",
+    "keywords": ["takeover", "security", "unauthorized", "reset", "login"]
+  },
+  {
+    "article_id": "KB-010",
+    "title": "Plan upgrade help",
+    "category": "account",
+    "excerpt": "Upgrading your plan is available from the billing section under account settings.",
+    "keywords": ["upgrade", "plan", "account", "billing"]
+  },
+  {
+    "article_id": "KB-011",
+    "title": "Download missing from dashboard",
+    "category": "technical",
+    "excerpt": "If files are not showing up in the dashboard, refresh the page and ensure your download permissions are enabled.",
+    "keywords": ["download", "dashboard", "files", "permissions", "refresh"]
+  },
+  {
+    "article_id": "KB-012",
+    "title": "Order confirmation details",
+    "category": "billing",
+    "excerpt": "Order confirmations are sent by email and also shown in your purchase history.",
+    "keywords": ["order", "confirmation", "receipt", "purchase", "history"]
+  },
+  {
+    "article_id": "KB-013",
+    "title": "Locked account recovery",
+    "category": "account",
+    "excerpt": "Locked accounts can be restored after identity verification and a password reset.",
+    "keywords": ["locked", "account", "verify", "identity", "recover"]
+  },
+  {
+    "article_id": "KB-014",
+    "title": "Device sync issue",
+    "category": "technical",
+    "excerpt": "Try reconnecting the device or re-authenticating to restore syncing with your workspace.",
+    "keywords": ["sync", "device", "reconnect", "workspace", "auth"]
+  },
+  {
+    "article_id": "KB-015",
+    "title": "Payment method update",
+    "category": "billing",
+    "excerpt": "Update or replace your payment method under billing settings before the next invoice is issued.",
+    "keywords": ["payment method", "card", "billing", "autopay", "invoice"]
+  }
+]
