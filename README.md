@@ -44,6 +44,41 @@ pytest -q                                  # full suite (43 tests)
 
 ---
 
+## Run with Docker
+
+The image pins every dependency to a verified lockfile, so a pull resolves to the exact set the test suite passed on — no resolution step, no version drift.
+
+```bash
+cp .env.example .env        # add your real OPENAI_API_KEY
+docker compose up --build
+```
+
+Then open <http://localhost:8501>.
+
+Compose refuses to start if `OPENAI_API_KEY` is unset, with a message saying so, rather than launching a container that silently escalates every ticket. Your `.env` is never copied into the image — it is read at run time and `.dockerignore` excludes it.
+
+Without Compose:
+
+```bash
+docker build -t resolveflow-ai .
+docker run -p 8501:8501 --env-file .env   -v resolveflow-data:/opt/resolveflow/app/data resolveflow-ai
+```
+
+Run the suite inside the image:
+
+```bash
+docker run --rm resolveflow-ai python -m pytest -q
+```
+
+**The named volume matters.** SQLite (`knowledge.db`) and the Qdrant index live in `/opt/resolveflow/app/data`. Mount it and ingested knowledge survives restarts; omit it and every restart reseeds the 15 starter articles from `app/fixtures/`, re-embedding them through the OpenAI API.
+
+On first boot against an empty volume the app seeds those 15 starters and embeds them, which takes a few seconds and costs a small number of embedding calls.
+
+The container runs as an unprivileged user (`uid 10001`) and declares a `HEALTHCHECK` against `/_stcore/health`. The image is ~1 GB, most of it `pyarrow`, `numpy`, `pandas`, and `grpcio`.
+
+
+---
+
 ## Requirement coverage
 
 | Hackathon requirement | Implementation |

@@ -43,6 +43,12 @@ python scripts/evaluate_company_sample.py  # live 30-article company corpus run
 | Make targets | `make -n setup run mcp test eval` | PASS — commands resolve |
 | Secret-pattern scan | source scan excluding local `.env` and virtualenv | PASS — no key-shaped secret found |
 | Fresh clone from GitHub | clone → venv → `pip install -e .` → `pytest -q` | PASS — 43 passed with a placeholder key, and again with no `.env` at all |
+| Docker image build | `docker build -t resolveflow-ai .` | PASS — builds clean from the pinned lockfile |
+| Suite inside container | `docker run --rm resolveflow-ai python -m pytest -q` | PASS — 43 passed; confirms MCP stdio subprocesses spawn under Docker |
+| Container startup | `docker run -p 8501:8501 --env-file .env` | PASS — healthy in 2s; Docker `HEALTHCHECK` reports healthy |
+| Container first boot, empty volume | keyed run against a fresh named volume | PASS — seeds and embeds the 15 starters; sidebar reports `OpenAI active · Ready · 15 articles`, no exception |
+| Volume persistence | `docker restart` | PASS — `knowledge.db` survives the restart |
+| Compose safety guard | `docker compose config` with no `OPENAI_API_KEY` | PASS — refuses to start with an explicit message |
 | Keyless startup | `streamlit run app/dashboard.py` with no `.env` | PASS — server healthy; sidebar reports the provider unavailable and tickets route to human review |
 | Editable install | `pip install -e .` | PASS — package discovery pinned to `app` |
 | Wheel build | `pip wheel --no-deps .` | PASS — builds; wheel contains only `app` |

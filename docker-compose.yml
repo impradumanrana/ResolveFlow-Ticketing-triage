@@ -1,0 +1,21 @@
+services:
+  resolveflow:
+    build: .
+    image: resolveflow-ai:latest
+    ports:
+      - "8501:8501"
+    environment:
+      # Compose substitutes these from a local .env file, which is never copied
+      # into the image. The app fails closed and routes to human review if the
+      # key is absent, rather than silently changing classifiers.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env before running}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      KB_THRESHOLD: ${KB_THRESHOLD:-0.55}
+    volumes:
+      # Persists the SQLite article store and the Qdrant index across restarts.
+      - resolveflow-data:/opt/resolveflow/app/data
+    restart: unless-stopped
+
+volumes:
+  resolveflow-data:
