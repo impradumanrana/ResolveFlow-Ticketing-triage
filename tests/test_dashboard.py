@@ -76,7 +76,9 @@ def test_theme_has_explicit_light_contrast_rules():
     ]:
         assert selector in dashboard
     assert "#06633f" in dashboard
-    assert "border:1px solid #98a2b3" in dashboard
+    assert "border:1.5px solid #8792a5" in dashboard
+    assert '.stApp div[data-baseweb="select"] > div' in dashboard
+    assert '[data-testid="stNumberInput"]' in dashboard
 
 
 class UploadedCSV:
@@ -128,8 +130,8 @@ def test_knowledge_csv_validation():
     root = Path(__file__).resolve().parents[1]
     ecommerce = root / "sample_data" / "northstar_ecommerce_knowledge.csv"
     ecommerce_articles = parse_knowledge_csv(UploadedCSV(ecommerce.read_text()), set())
-    assert len(ecommerce_articles) == 25
-    assert len({article["article_id"] for article in ecommerce_articles}) == 25
+    assert len(ecommerce_articles) == 30
+    assert len({article["article_id"] for article in ecommerce_articles}) == 30
 
     duplicate = UploadedCSV(
         "article_id,title,category,excerpt\n"
@@ -152,3 +154,12 @@ def test_markdown_knowledge_ingestion_creates_reviewable_sections():
     assert articles[0]["article_id"].startswith("DOC-DEVICE-GUIDE-")
     assert articles[0]["category"] == "technical"
     assert "Pair the device" in articles[0]["excerpt"]
+
+
+def test_company_markdown_preserves_sections_and_category_labels():
+    root = Path(__file__).resolve().parents[1]
+    markdown = root / "sample_data" / "northstar_ecommerce_knowledge.md"
+    articles = parse_knowledge_documents([UploadedCSV(markdown.read_text(), markdown.name)], "account", set())
+    assert len(articles) == 30
+    assert {article["category"] for article in articles} == {"technical", "billing", "account"}
+    assert any("Password reset" in article["title"] and article["category"] == "technical" for article in articles)

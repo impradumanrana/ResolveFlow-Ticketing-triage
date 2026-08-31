@@ -78,6 +78,13 @@ source .venv/bin/activate
 python -m app.eval
 ```
 
+Real company-corpus evaluation (30 uploaded-style articles + 11 semantic searches + 10 live tickets):
+
+```bash
+source .venv/bin/activate
+python scripts/evaluate_company_sample.py
+```
+
 Tests:
 
 ```bash
@@ -95,13 +102,13 @@ make eval
 
 ## Process real tickets from CSV
 
-Open the top-level **Import ticket CSV** tab in the Ticket triage view. Download either the empty template or the editable 45-ticket realistic example, replace the examples with your own requests, and upload it. Required columns are `subject` and `body`; `ticket_id` and `customer_id` are optional. The app validates the file, rejects duplicate IDs, limits each run to 50 tickets, and routes every row through the real graph and MCP workflow.
+Open the top-level **Import ticket CSV** tab in the Ticket triage view. Download either the empty template or the editable 50-ticket Northstar company example, replace the examples with your own requests, and upload it. Required columns are `subject` and `body`; `ticket_id` and `customer_id` are optional. The app validates the file, rejects duplicate IDs, limits each run to 50 tickets, and routes every row through the real graph and MCP workflow.
 
 The dashboard always uses the OpenAI provider and model configured in `.env`; there is no runtime mode selector. If OpenAI is unavailable, the trace records `MODEL_ERROR` and safely routes the ticket to a person rather than silently changing classifiers.
 
 ## Manage the support knowledge base
 
-Open **Support knowledge** in the sidebar to view and export searchable help articles, add one approved article manually, import CSV, or ingest PDF, Markdown, and text files. A persistent action selector keeps the active workflow open after an import. Extracted sections are previewed before indexing. Imports can append to the current collection or replace it completely. A single confirmed action clears the complete knowledge base, and the 15 optional starter articles can be restored separately. A built-in test console runs the same real MCP search used by ticket triage.
+Open **Support knowledge** in the sidebar to view and export searchable help articles, add one approved article manually, import CSV, or ingest PDF, Markdown, and text files. The file-ingestion panel includes a downloadable 30-article Northstar company example. Optional per-section `**Category:**` labels preserve technical, billing, and account categories in mixed Markdown files. A persistent action selector keeps the active workflow open after an import. Extracted sections are previewed before indexing. Imports can append to the current collection or replace it completely. A single confirmed action clears the complete knowledge base, and the 15 optional starter articles can be restored separately. A built-in test console runs the same real MCP search used by ticket triage.
 
 These controls manage the operational knowledge used by manual and imported tickets. The guided sample and Quality Check intentionally use a separate protected starter corpus so a knowledge upload cannot break the reproducible evaluation story.
 
@@ -132,7 +139,8 @@ Auto-resolution is blocked by high/critical urgency, anger/threats, security ris
 
 ## Current verified result
 
-- 41 tests pass, including protected-demo isolation, persistent SQLite/Qdrant knowledge CRUD, document ingestion, hybrid paraphrase retrieval, real MCP search, paragraph-level citation and grounding validation, knowledge-CSV validation, hosted-output repair, 50-ticket CSV validation, SLA targets, rendered Streamlit interactions, and explicit contrast safeguards.
+- 42 tests pass, including protected-demo isolation, mixed-category Markdown ingestion, persistent SQLite/Qdrant knowledge CRUD, hybrid paraphrase retrieval, real MCP search, paragraph-level citation and grounding validation, knowledge-CSV validation, hosted-output repair, 50-ticket CSV validation, SLA targets, rendered Streamlit interactions, and explicit contrast safeguards.
+- Live Northstar company evaluation: 30/30 articles indexed, 11/11 paraphrase searches correct and above the answer threshold, 10/10 complete MCP traces, all automatic drafts grounded, and zero unsafe auto-resolves.
 - Live OpenAI `gpt-5.6-luna` + `text-embedding-3-small` RAG smoke: a safe password-reset ticket reached `AUTO_RESOLVE` through real MCP/Qdrant retrieval with an exact stored citation and 2/2 grounding claims verified.
 - Protected live six-ticket demo: 6/6 expected routes, 2 grounded answer drafts, 1 clarification, 3 safe escalations, and zero unsafe automatic drafts.
 - Golden deterministic + real MCP/Qdrant run: 15/15 category and route matches; 9/9 paraphrase retrieval cases top-1.

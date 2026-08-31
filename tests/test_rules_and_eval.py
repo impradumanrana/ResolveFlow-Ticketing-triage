@@ -184,23 +184,23 @@ def test_persistent_knowledge_can_add_clear_replace_and_restore(tmp_path):
     assert restore_built_in_articles(db_path) == built_in_count
 
 
-def test_ecommerce_starter_knowledge_retrieves_realistic_queries(tmp_path):
+def test_company_sample_knowledge_retrieves_realistic_queries(tmp_path):
     source = Path(__file__).resolve().parents[1] / "sample_data" / "northstar_ecommerce_knowledge.csv"
     with source.open() as handle:
         articles = [{**row, "keywords": row["keywords"].split("|")} for row in csv.DictReader(handle)]
     db_path = tmp_path / "ecommerce.db"
     replace_articles(articles, source="E-commerce starter", db_path=db_path)
     cases = [
-        ("carrier says delivered but parcel is missing", "account", "ECOM-003"),
-        ("refund approved twelve business days ago", "billing", "ECOM-008"),
-        ("change the card saved for renewal", "billing", "ECOM-014"),
-        ("valid coupon is rejected at checkout", "billing", "ECOM-016"),
-        ("unknown login and order I did not place", "account", "ECOM-024"),
-        ("set up one time password app", "technical", "ECOM-022"),
-        ("return a final sale product", "billing", "ECOM-006"),
-        ("download my tax invoice", "billing", "ECOM-013"),
-        ("cancel before warehouse packing", "account", "ECOM-004"),
-        ("unexpected customs duty", "billing", "ECOM-019"),
+        ("carrier says delivered but parcel is missing", "account", "NSM-003"),
+        ("refund approved twelve business days ago", "billing", "NSM-008"),
+        ("change the card saved for renewal", "billing", "NSM-014"),
+        ("valid coupon is rejected at checkout", "billing", "NSM-016"),
+        ("unknown login and order I did not place", "account", "NSM-024"),
+        ("set up one time password app", "technical", "NSM-022"),
+        ("return a final sale product", "billing", "NSM-006"),
+        ("download my tax invoice", "billing", "NSM-013"),
+        ("cancel before warehouse packing", "account", "NSM-004"),
+        ("unexpected customs duty", "billing", "NSM-019"),
     ]
     for query, category, expected in cases:
         result = search_articles(query, category, 1, db_path)[0]

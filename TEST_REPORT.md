@@ -12,7 +12,7 @@ Automated evaluation mode: explicit deterministic test provider/embeddings + rea
 
 | Check | Command | Result |
 |---|---|---|
-| Full automated suite | `.venv/bin/python -m pytest -q` | PASS — 41 passed in 54.17s |
+| Full automated suite | `.venv/bin/python -m pytest -q` | PASS — 42 passed in 79.82s |
 | Golden evaluation | `python -m app.eval` | PASS — 15 cases |
 | Category accuracy | automated golden evaluation | 100% |
 | Route accuracy | automated golden evaluation | 100% |
@@ -23,11 +23,12 @@ Automated evaluation mode: explicit deterministic test provider/embeddings + rea
 | MCP trace completeness | automated golden evaluation | 100% |
 | Route distribution | golden evaluation | 7 auto-resolve, 2 clarify, 6 escalate |
 | Paraphrase retrieval comparison | 9 realistic queries | old scorer 5/9 top-1; hybrid scorer 9/9 top-1 |
-| E-commerce retrieval | isolated 25-article store | PASS — 10/10 top-1 and 10/10 above safety threshold |
+| Company sample retrieval | isolated 30-article store | PASS — 10/10 automated top-1 regression cases |
+| Live company RAG evaluation | `python scripts/evaluate_company_sample.py` | PASS — 30 indexed; 11/11 top-1 and above threshold; 10/10 complete MCP traces; all auto drafts grounded; 0 unsafe auto-resolves |
 | Live RAG storage migration | existing 57-article corpus | PASS — 1536-dimensional OpenAI embeddings indexed in persistent Qdrant |
 | Live end-to-end grounded ticket | OpenAI → guardrails → MCP → Qdrant/BM25 → rerank → OpenAI → validator | PASS — `AUTO_RESOLVE`, real citation, 2/2 claims verified |
 | Protected live guided batch | configured OpenAI + isolated 15-article demo corpus | PASS — 6/6 expected routes; 2 drafts, 1 clarification, 3 escalations |
-| Streamlit rendered interaction | `.venv/bin/python -m pytest -q tests/test_dashboard.py` | PASS — 5 tests in 11.26s |
+| Streamlit rendered interaction | `.venv/bin/python -m pytest -q tests/test_dashboard.py` | PASS — 6 tests in 16.13s |
 | Streamlit startup | `streamlit run app/dashboard.py --server.headless true --server.address 127.0.0.1 --server.port 8504` | PASS — server listening |
 | Streamlit health | `curl .../\_stcore/health` | PASS — `ok` |
 | Make targets | `make -n setup run mcp test eval` | PASS — commands resolve |
@@ -45,7 +46,7 @@ Automated evaluation mode: explicit deterministic test provider/embeddings + rea
 - persistent Qdrant collection creation, synchronization, clearing, replacement, and semantic query
 - persistent add, clear-user, clear-all, replace-all, and restore operations
 - nine realistic paraphrase retrieval cases with strong expected matches
-- Markdown/text chunk ingestion and preview validation; PDF extraction uses the same parser path
+- Markdown/text chunk ingestion and preview validation, including 30 section boundaries and mixed per-section categories; PDF extraction uses the same parser path
 - OpenAI dense + Qdrant/BM25 hybrid score components and reranked positions returned through MCP
 - knowledge-base manual/CSV UI and CSV validation
 - KB threshold at and immediately below the boundary
@@ -86,7 +87,7 @@ The in-app browser automation connection was unavailable during this session, so
 
 ## Provider note
 
-The live RAG checks above were freshly measured using configured OpenAI `gpt-5.6-luna` plus `text-embedding-3-small`. Accuracy percentages are from the current repeatable 41-test suite, which uses explicit deterministic provider/embedding fixtures while retaining the real graph, MCP subprocess, SQLite, and Qdrant paths. Normal dashboard and CLI operation do not expose or silently select those fixtures. Run **Quality check** for a fresh full live OpenAI evaluation against the protected evaluation corpus.
+The live RAG checks above were freshly measured using configured OpenAI `gpt-5.6-luna` plus `text-embedding-3-small`. Accuracy percentages are from the current repeatable 42-test suite, which uses explicit deterministic provider/embedding fixtures while retaining the real graph, MCP subprocess, SQLite, and Qdrant paths. The separate Northstar company run used live OpenAI classification and embeddings through the real MCP subprocess. Normal dashboard and CLI operation do not expose or silently select test fixtures. Run **Quality check** for a fresh evaluation against the protected corpus.
 
 ## Known limitations
 

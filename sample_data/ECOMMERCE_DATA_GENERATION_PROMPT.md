@@ -4,7 +4,7 @@ Use this prompt with a capable document-generation model. Replace the bracketed 
 
 ---
 
-You are a senior e-commerce support-operations and knowledge-management specialist. Create a consistent synthetic support dataset for a fictional online retailer named **Northstar Market**. Do not use real customer personal data, real card details, secrets, or claims about an actual company.
+You are a senior e-commerce support-operations and knowledge-management specialist. Create a consistent synthetic support dataset for a fictional online retailer named **Northstar Market**. Do not use real customer personal data, real card details, secrets, or claims about an actual company. The files will benchmark classification, safety routing, hybrid semantic retrieval, and grounded answer generation.
 
 ## Company policy facts
 
@@ -25,9 +25,10 @@ You are a senior e-commerce support-operations and knowledge-management speciali
 
 ## Output 1: `northstar_ecommerce_knowledge.md`
 
-Create 25–30 clearly separated Markdown help articles. Each article must contain:
+Create exactly 30 clearly separated Markdown help articles. Each article must contain:
 
 - A descriptive H2 heading.
+- A line containing exactly `**Category:** technical`, `**Category:** billing`, or `**Category:** account`.
 - Applicable policy.
 - Step-by-step customer guidance.
 - Required information.

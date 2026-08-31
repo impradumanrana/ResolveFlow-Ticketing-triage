@@ -17,7 +17,7 @@ The original hackathon brief and every root Markdown file were reviewed. Playboo
 - Added the ordered six-case demo and 36-ticket / 15-golden fixture set.
 - Added selectable 6- and 36-ticket sample batches, CSV import with validation/template, operational source and status columns, and compact ticket/MCP evidence cards.
 - Moved sample loading, manual ticket entry, and CSV import into three prominent start tabs above KPIs and the queue.
-- Added an editable 45-ticket realistic CSV, empty template, duplicate-ID protection, privacy guidance, SLA response targets, and priority-first queue sorting.
+- Added an editable 50-ticket realistic company CSV, empty template, duplicate-ID protection, privacy guidance, SLA response targets, and priority-first queue sorting.
 - Fixed the sidebar Technical details expander with explicit dark backgrounds and readable text for collapsed, expanded, and hover states.
 - Rebuilt the How it works view as an end-to-end product walkthrough covering batch inputs, processing modes, graph stages, MCP/stdio, guardrails, route outcomes, SLA targets, human review, outputs, and trace evidence.
 - Added a Support knowledge workspace with article browsing/export, manual creation, CSV import, separate custom persistence, and verified MCP ingestion of built-in plus user-added articles.
@@ -27,7 +27,9 @@ The original hackathon brief and every root Markdown file were reviewed. Playboo
 - Added PDF, Markdown, and text ingestion with chunk preview plus an in-product real MCP search tester.
 - Removed the user-facing processing-mode selector; dashboard and CLI now always use configured OpenAI and fail safely without a silent classifier fallback.
 - Rebuilt Quality Check around seven live readiness gates: classification, routing, safety recall, unsafe automation, knowledge retrieval, grounded drafts, and MCP trace completeness.
-- Added separate local e-commerce test resources with 25 knowledge articles, Markdown guidance, a reusable PDF/MD/CSV generation prompt, and 50 realistic support tickets; these are intentionally not exposed in the product UI.
+- Rebuilt the Northstar company test resources with 30 aligned knowledge articles in Markdown and CSV, category-aware Markdown sections, a reusable generation prompt, and 50 realistic support tickets; the UI now exposes small downloads for the company Markdown and ticket CSV.
+- Added a repeatable live company-corpus evaluation that indexes the sample into isolated SQLite/Qdrant storage and measures semantic retrieval, MCP trace completeness, grounding, and unsafe automation.
+- Applied visible 1.5 px borders, hover states, and indigo focus rings to all Streamlit/BaseWeb dropdowns, text areas, text inputs, number inputs, uploaders, and sidebar form controls.
 - Added explainable retrieval component scores to each MCP match and realistic paraphrase-quality tests.
 - Replaced user-facing `KB` abbreviations with “Support knowledge base,” “Help article,” and “Article match”; raw MCP terms remain only in the technical evidence areas.
 - Replaced weak tests with coverage for every blocking rule, threshold boundary, provider failure, MCP outage, injection resistance, citation, exact trace, golden metrics, and rendered UI interactions.
@@ -36,7 +38,7 @@ The original hackathon brief and every root Markdown file were reviewed. Playboo
 
 ## Measured result
 
-- Tests: 41 passed.
+- Tests: 42 passed.
 - Golden labelled cases: 15.
 - Category accuracy: 100%.
 - Route accuracy: 100%.
@@ -47,6 +49,7 @@ The original hackathon brief and every root Markdown file were reviewed. Playboo
 - Live existing knowledge migration: 57/57 articles embedded with OpenAI and indexed in Qdrant.
 - Live full RAG verification: safe password-reset ticket auto-resolved with a real retrieved article citation and 2/2 support claims validated.
 - Protected live six-ticket demo: 6/6 expected routes; 2 grounded drafts, 1 clarification, 3 escalations, and zero unsafe auto-resolutions regardless of user knowledge changes.
+- Live Northstar company corpus: 30 articles indexed; 11/11 paraphrase searches correct and above threshold; 10/10 MCP traces complete; all automatic drafts grounded; 0 unsafe auto-resolutions.
 
 ## Honest limitations
 
@@ -62,6 +65,7 @@ source .venv/bin/activate
 pytest -q
 python -m app.eval
 python -m app.cli
+python scripts/evaluate_company_sample.py
 streamlit run app/dashboard.py
 ```
 

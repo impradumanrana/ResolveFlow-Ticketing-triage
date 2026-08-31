@@ -34,7 +34,7 @@ VALID_CATEGORIES = {"technical", "billing", "account"}
 STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "but", "for", "from", "how",
     "i", "if", "in", "is", "it", "me", "my", "of", "on", "or", "please", "the",
-    "this", "to", "was", "what", "when", "where", "with", "you", "your",
+    "this", "to", "two", "was", "what", "when", "where", "with", "you", "your",
 }
 CONCEPT_GROUPS = {
     "access": {"access", "login", "signin", "authenticate", "enter"},
@@ -54,7 +54,11 @@ CONCEPT_GROUPS = {
     "upgrade": {"upgrade", "increase", "higher", "premium"},
     "update": {"update", "change", "replace", "edit", "switch"},
     "dashboard": {"dashboard", "homepage", "screen", "portal"},
-    "missing": {"missing", "absent", "gone", "unavailable"},
+    "missing": {"missing", "absent", "gone", "unavailable", "find", "nobody"},
+    "delivery": {"delivery", "delivered", "arrived", "arrival", "courier", "parcel", "shipment", "box"},
+    "order": {"order", "purchase", "purchased", "bought"},
+    "warranty": {"warranty", "fault", "faulty", "failed", "failure", "defective", "broke", "broken"},
+    "bulk": {"bulk", "wholesale", "quote", "quantity", "units", "monitors"},
 }
 CONCEPT_LOOKUP = {term: concept for concept, terms in CONCEPT_GROUPS.items() for term in terms}
 
@@ -90,7 +94,7 @@ def _now() -> str:
 def _tokens(text: str, *, expand_concepts: bool = True) -> list[str]:
     normalized = (text or "").lower()
     for phrase, replacement in {
-        "sign in": "signin", "log in": "login", "one time password": "otp",
+        "sign in": "signin", "signed in": "signin", "log in": "login", "logged in": "login", "one time password": "otp",
         "one-time password": "otp", "otp app": "otp authenticator",
         "without permission": "unauthorized", "someone else": "unauthorized person",
         "home screen": "dashboard", "card on file": "payment method",

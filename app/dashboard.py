@@ -32,6 +32,7 @@ from app.providers import DeterministicProvider, OpenAIProvider
 
 
 APP_ROOT = Path(__file__).resolve().parent
+SAMPLE_DATA_ROOT = APP_ROOT.parent / "sample_data"
 DEMO_IDS = ["T-001", "T-003", "T-002", "T-004", "T-005", "T-020"]
 SAMPLE_BATCHES = {
     "Guided demo · 6 tickets": DEMO_IDS,
@@ -151,23 +152,30 @@ def parse_knowledge_documents(uploaded_files: list[Any], category: str, existing
         if not text:
             raise ValueError(f"No readable text was found in {filename}.")
 
-        blocks = [re.sub(r"\s+", " ", block).strip(" #\t") for block in re.split(r"\n\s*\n|(?=^#{1,3}\s)", text, flags=re.MULTILINE)]
+        has_markdown_headings = suffix == ".md" and bool(re.search(r"^#{1,3}\s+", text, flags=re.MULTILINE))
+        if has_markdown_headings:
+            blocks = [block.strip() for block in re.split(r"(?=^#{1,3}\s+)", text, flags=re.MULTILINE)]
+        else:
+            blocks = [re.sub(r"\s+", " ", block).strip(" #\t") for block in re.split(r"\n\s*\n", text)]
         bounded_blocks = [
             part
             for block in blocks if block
             for part in textwrap.wrap(block, width=900, break_long_words=False, break_on_hyphens=False)
         ]
-        chunks: list[str] = []
-        pending = ""
-        for block in bounded_blocks:
-            if len(pending) + len(block) + 2 <= 900:
-                pending = f"{pending}\n\n{block}".strip()
-            else:
-                if pending:
-                    chunks.append(pending)
-                pending = block
-        if pending:
-            chunks.append(pending)
+        if has_markdown_headings:
+            chunks = bounded_blocks
+        else:
+            chunks = []
+            pending = ""
+            for block in bounded_blocks:
+                if len(pending) + len(block) + 2 <= 900:
+                    pending = f"{pending}\n\n{block}".strip()
+                else:
+                    if pending:
+                        chunks.append(pending)
+                    pending = block
+            if pending:
+                chunks.append(pending)
 
         slug = re.sub(r"[^A-Z0-9]+", "-", Path(filename).stem.upper()).strip("-")[:28] or "DOCUMENT"
         for index, chunk in enumerate(chunks, start=1):
@@ -177,10 +185,18 @@ def parse_knowledge_documents(uploaded_files: list[Any], category: str, existing
             seen.add(article_id)
             words = [word.lower() for word in re.findall(r"[A-Za-z][A-Za-z0-9-]{3,}", chunk)]
             common = [word for word, _ in Counter(words).most_common(8)]
+            category_match = re.search(
+                r"(?:\*\*)?Category\s*:(?:\*\*)?\s*(technical|billing|account)\b",
+                chunk,
+                flags=re.IGNORECASE,
+            )
+            inferred_category = category_match.group(1).lower() if category_match else category
+            heading_match = re.search(r"(?:^|\n)#{1,3}\s+(.+)", chunk)
+            article_title = heading_match.group(1).strip() if heading_match else f"{Path(filename).stem} · section {index}"
             articles.append({
                 "article_id": article_id,
-                "title": f"{Path(filename).stem} · section {index}",
-                "category": category,
+                "title": article_title,
+                "category": inferred_category,
                 "excerpt": chunk,
                 "keywords": common,
             })
@@ -220,28 +236,32 @@ def apply_theme() -> None:
         [data-testid="stMain"] [data-testid="stWidgetLabel"] p,
         [data-testid="stMain"] label p,
         [data-testid="stMain"] summary span { color:#344054 !important; font-weight:600; }
-        [data-testid="stMain"] input,
-        [data-testid="stMain"] textarea { color:#172033 !important; background:#fff !important; caret-color:#4f46e5 !important; }
-        [data-testid="stMain"] [data-testid="stTextInput"] [data-baseweb="input"],
-        [data-testid="stMain"] [data-testid="stTextArea"] [data-baseweb="textarea"] { background:#fff !important; border:1px solid #98a2b3 !important; border-radius:8px !important; box-shadow:0 1px 2px rgba(16,24,40,.06) !important; }
-        [data-testid="stMain"] [data-testid="stTextInput"] [data-baseweb="input"]:focus-within,
-        [data-testid="stMain"] [data-testid="stTextArea"] [data-baseweb="textarea"]:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.16) !important; }
-        [data-testid="stMain"] input::placeholder,
-        [data-testid="stMain"] textarea::placeholder { color:#7b8497 !important; opacity:1; }
-        [data-testid="stMain"] [data-testid="stSelectbox"] [data-baseweb="select"] > div,
-        [data-testid="stMain"] [data-testid="stMultiSelect"] [data-baseweb="select"] > div { background:#fff !important; color:#172033 !important; border:1px solid #98a2b3 !important; border-radius:8px !important; min-height:42px !important; box-shadow:0 1px 2px rgba(16,24,40,.06) !important; cursor:pointer !important; }
-        [data-testid="stMain"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
-        [data-testid="stMain"] [data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover { border-color:#667085 !important; background:#fdfdff !important; }
-        [data-testid="stMain"] [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
-        [data-testid="stMain"] [data-testid="stMultiSelect"] [data-baseweb="select"] > div:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.16) !important; }
-        [data-testid="stMain"] [data-baseweb="select"] span { color:#172033 !important; }
-        [data-testid="stMain"] [data-baseweb="select"] svg { color:#475467 !important; fill:#475467 !important; width:18px !important; height:18px !important; }
+        .stApp input, .stApp textarea { color:#172033 !important; background:#fff !important; caret-color:#4f46e5 !important; }
+        .stApp [data-testid="stTextInput"] [data-baseweb="input"],
+        .stApp [data-testid="stTextArea"] [data-baseweb="textarea"],
+        .stApp [data-baseweb="input"],
+        .stApp [data-baseweb="textarea"],
+        .stApp [data-testid="stNumberInput"] > div > div { background:#fff !important; border:1.5px solid #8792a5 !important; border-radius:9px !important; box-shadow:0 1px 3px rgba(16,24,40,.09) !important; }
+        .stApp [data-baseweb="input"]:hover,
+        .stApp [data-baseweb="textarea"]:hover,
+        .stApp [data-testid="stNumberInput"] > div > div:hover { border-color:#596579 !important; }
+        .stApp [data-baseweb="input"]:focus-within,
+        .stApp [data-baseweb="textarea"]:focus-within,
+        .stApp [data-testid="stNumberInput"] > div > div:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.18) !important; }
+        .stApp input::placeholder, .stApp textarea::placeholder { color:#697386 !important; opacity:1; }
+        .stApp [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+        .stApp [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+        .stApp div[data-baseweb="select"] > div { background:#fff !important; color:#172033 !important; border:1.5px solid #8792a5 !important; border-radius:9px !important; min-height:42px !important; box-shadow:0 1px 3px rgba(16,24,40,.09) !important; cursor:pointer !important; }
+        .stApp [data-baseweb="select"] > div:hover { border-color:#596579 !important; background:#fdfdff !important; }
+        .stApp [data-baseweb="select"] > div:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.18) !important; }
+        .stApp [data-baseweb="select"] span { color:#172033 !important; }
+        .stApp [data-baseweb="select"] svg { color:#344054 !important; fill:#344054 !important; width:18px !important; height:18px !important; }
         [data-baseweb="popover"] [role="listbox"] { background:#fff !important; border:1px solid #98a2b3 !important; border-radius:8px !important; box-shadow:0 12px 28px rgba(16,24,40,.16) !important; }
         [data-baseweb="popover"] [role="option"] { color:#172033 !important; background:#fff !important; }
         [data-baseweb="popover"] [role="option"]:hover,
         [data-baseweb="popover"] [aria-selected="true"] { background:#eef2ff !important; color:#312e81 !important; }
-        [data-testid="stMain"] [data-testid="stFileUploaderDropzone"] { background:#fff !important; border:1.5px dashed #98a2b3 !important; border-radius:10px !important; color:#344054 !important; }
-        [data-testid="stMain"] [data-testid="stFileUploaderDropzone"]:hover { border-color:#4f46e5 !important; background:#f7f7ff !important; }
+        .stApp [data-testid="stFileUploaderDropzone"] { background:#fff !important; border:1.5px dashed #8792a5 !important; border-radius:10px !important; color:#344054 !important; }
+        .stApp [data-testid="stFileUploaderDropzone"]:hover { border-color:#4f46e5 !important; background:#f7f7ff !important; }
         [data-testid="stMain"] [data-testid="stFileUploaderDropzone"] small,
         [data-testid="stMain"] [data-testid="stFileUploaderDropzone"] span { color:#596579 !important; opacity:1 !important; }
         [data-testid="stMain"] [data-baseweb="tab-list"] { gap:6px; border-bottom:1px solid #cfd5e3 !important; }
@@ -601,9 +621,9 @@ def operations_view() -> None:
             "text/csv",
         )
         dl_b.download_button(
-            "Sample tickets (45)",
-            APP_ROOT.joinpath("fixtures/realistic_ticket_batch_45.csv").read_bytes(),
-            "resolveflow-realistic-45-tickets.csv",
+            "Realistic company sample (50)",
+            SAMPLE_DATA_ROOT.joinpath("northstar_support_tickets_50.csv").read_bytes(),
+            "northstar-support-tickets-50.csv",
             "text/csv",
         )
         uploaded = st.file_uploader("Choose a CSV file", type=["csv"])
@@ -835,12 +855,20 @@ def knowledge_base_view() -> None:
 
     if knowledge_action == "Ingest files":
         st.write("ResolveFlow extracts readable sections, creates OpenAI dense embeddings, and lets you preview them before indexing them in Qdrant.")
-        st.download_button(
-            "Markdown template",
-            "# Help article title\n\nWrite approved customer guidance here. Include the steps to follow, information required, and when a person should review the request.\n\n# Another help article\n\nAdd another self-contained answer here.\n",
+        template_col, sample_col = st.columns(2)
+        template_col.download_button(
+            "Blank Markdown template",
+            "# Help article title\n\n**Category:** technical\n\nWrite approved customer guidance here. Include the steps to follow, information required, and when a person should review the request.\n\n# Another help article\n\n**Category:** billing\n\nAdd another self-contained answer here.\n",
             "support-knowledge-template.md",
             "text/markdown",
         )
+        sample_col.download_button(
+            "Example company knowledge",
+            SAMPLE_DATA_ROOT.joinpath("northstar_ecommerce_knowledge.md").read_bytes(),
+            "northstar-company-knowledge.md",
+            "text/markdown",
+        )
+        st.caption("Optional `**Category:** technical`, `billing`, or `account` labels inside Markdown override the fallback category for each extracted section.")
         document_category = st.selectbox("Category for these files", ["technical", "billing", "account"], key="document-category")
         document_mode = st.selectbox(
             "Document import behavior",
