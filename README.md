@@ -91,6 +91,12 @@ make test
 make eval
 ```
 
+## Process real tickets from CSV
+
+Open **Import a ticket batch from CSV** in the Ticket triage view. Download either the empty template or the editable 45-ticket realistic example, replace the examples with your own requests, and upload it. Required columns are `subject` and `body`; `ticket_id` and `customer_id` are optional. The app validates the file, rejects duplicate IDs, limits each run to 50 tickets, and routes every row through the real graph and MCP workflow.
+
+Choose **Reliable demo classifier** for repeatable offline results or **Configured hosted model** to use valid provider settings from `.env`. The selected mode is explicit; hosted failures are shown and safely escalated.
+
 ## Demo in 60 seconds
 
 1. Select **Guided demo · 6 tickets** and click **Load sample batch**.
@@ -114,7 +120,7 @@ Auto-resolution is blocked by high/critical urgency, anger/threats, security ris
 
 ## Current verified result
 
-- 22 tests pass, including hosted-output repair, batch CSV validation, rendered Streamlit interactions, compact detail cards, and explicit light-theme contrast safeguards.
+- 22 tests pass, including hosted-output repair, 45-ticket CSV validation, duplicate-ID checks, SLA targets, rendered Streamlit interactions, compact detail cards, and explicit contrast safeguards.
 - Golden deterministic + real MCP run: 15/15 category and route matches.
 - High-risk recall: 100%.
 - Unsafe auto-resolves: 0.

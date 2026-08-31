@@ -1,7 +1,7 @@
 from streamlit.testing.v1 import AppTest
 from pathlib import Path
 
-from app.dashboard import load_tickets, parse_uploaded_batch
+from app.dashboard import load_tickets, parse_uploaded_batch, response_target
 
 
 def test_dashboard_demo_and_navigation_render_without_errors():
@@ -11,7 +11,8 @@ def test_dashboard_demo_and_navigation_render_without_errors():
     assert app.radio[0].options == ["Ticket triage", "Quality check", "How it works"]
     assert app.button[0].label == "Load sample batch"
     assert app.button[1].label == "Clear all"
-    assert app.selectbox[0].options == ["Guided demo · 6 tickets", "Operations batch · all 36 tickets"]
+    assert next(item for item in app.selectbox if item.label == "Sample batch").options == ["Guided demo · 6 tickets", "Operations batch · all 36 tickets"]
+    assert next(item for item in app.selectbox if item.label == "Processing mode").value == "Reliable demo classifier"
     assert len(load_tickets()) == 36
     assert [metric.value for metric in app.metric[:5]] == ["0", "0", "0", "0", "0 min"]
 
@@ -20,7 +21,7 @@ def test_dashboard_demo_and_navigation_render_without_errors():
     assert [metric.value for metric in app.metric[:5]] == ["6", "2", "3", "2", "8 min"]
     assert len(app.metric) == 5  # Detail and MCP evidence use compact cards, not oversized KPI typography.
     assert len(app.dataframe) == 1
-    assert len(app.get("download_button")) == 3
+    assert len(app.get("download_button")) == 4
     assert len(app.expander) >= 7
 
     next(item for item in app.selectbox if item.label == "Final route").set_value("ESCALATE").run()
@@ -47,7 +48,7 @@ def test_theme_has_explicit_light_contrast_rules():
     dashboard = root.joinpath("app/dashboard.py").read_text()
     assert 'base = "light"' in theme
     assert 'textColor = "#172033"' in theme
-    for selector in ["stMetricLabel", "stMetricValue", "stWidgetLabel", "baseButton-secondary"]:
+    for selector in ["stMetricLabel", "stMetricValue", "stWidgetLabel", "baseButton-secondary", "stExpanderDetails"]:
         assert selector in dashboard
 
 
@@ -70,3 +71,17 @@ def test_csv_batch_import_validation():
         assert "subject and body" in str(exc)
     else:
         raise AssertionError("Missing body column should fail validation")
+
+    root = Path(__file__).resolve().parents[1]
+    example = root / "app" / "fixtures" / "realistic_ticket_batch_45.csv"
+    assert len(parse_uploaded_batch(UploadedCSV(example.read_text()))) == 45
+
+    try:
+        parse_uploaded_batch(UploadedCSV("ticket_id,subject,body\nB-1,One,Message\nB-1,Two,Message\n"))
+    except ValueError as exc:
+        assert "appears more than once" in str(exc)
+    else:
+        raise AssertionError("Duplicate ticket IDs should fail validation")
+
+    assert response_target("critical") == "15 minutes"
+    assert response_target("low") == "24 hours"

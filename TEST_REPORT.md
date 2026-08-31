@@ -10,7 +10,7 @@ Reported evaluation mode: Deterministic Provider + real LangGraph + real MCP std
 
 | Check | Command | Result |
 |---|---|---|
-| Full automated suite | `.venv/bin/pytest -q` | PASS — 22 passed in 24.97s |
+| Full automated suite | `.venv/bin/pytest -q` | PASS — 22 passed in 16.06s |
 | Golden evaluation | `python -m app.eval` | PASS — 15 cases |
 | Category accuracy | golden evaluation | 100% |
 | Route accuracy | golden evaluation | 100% |
@@ -49,6 +49,8 @@ Reported evaluation mode: Deterministic Provider + real LangGraph + real MCP std
 - six-case batch and KPI totals
 - selectable full 36-ticket sample batch
 - CSV batch parsing, required-column validation, and 50-ticket limit
+- 45-ticket example CSV, duplicate-ID rejection, and SLA target mapping
+- sidebar Technical details contrast in expanded and collapsed states
 - compact ticket and MCP evidence cards (only the KPI row uses large metrics)
 - operational source and status fields
 - queue table and downloads

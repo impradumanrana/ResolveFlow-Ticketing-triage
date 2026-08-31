@@ -47,7 +47,14 @@ def load_tickets() -> list[dict[str, Any]]:
 
 
 def setup_state() -> None:
-    defaults = {"results": {}, "ticket_inputs": {}, "audit_log": [], "selected_ticket": DEMO_IDS[0], "eval_report": None}
+    defaults = {
+        "results": {},
+        "ticket_inputs": {},
+        "audit_log": [],
+        "selected_ticket": DEMO_IDS[0],
+        "eval_report": None,
+        "provider_mode": "Reliable demo classifier",
+    }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -130,7 +137,8 @@ def ticket_from_fixture(raw: dict[str, Any]) -> Ticket:
 
 
 def run_ticket(raw: dict[str, Any]) -> dict[str, Any]:
-    return triage_ticket(ticket_from_fixture(raw), provider=DeterministicProvider()).model_dump()
+    provider = None if st.session_state.get("provider_mode") == "Configured hosted model" else DeterministicProvider()
+    return triage_ticket(ticket_from_fixture(raw), provider=provider).model_dump()
 
 
 def run_ticket_batch(raw_tickets: list[dict[str, Any]], label: str) -> None:
@@ -435,6 +443,16 @@ def operations_view() -> None:
         and (urgency_filter == "All" or row["Urgency"] == urgency_filter)
         and (status_filter == "All" or row["Status"] == status_filter)
     ]
+    sort_left, sort_right = st.columns([4, 1.2])
+    sort_left.caption(f"Showing {len(filtered)} of {len(rows)} processed tickets")
+    sort_by = sort_right.selectbox("Sort queue", ["Priority first", "Ticket ID", "Highest confidence"])
+    if sort_by == "Priority first":
+        priority = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+        filtered.sort(key=lambda row: (priority.get(row["Urgency"], 4), row["Ticket"]))
+    elif sort_by == "Ticket ID":
+        filtered.sort(key=lambda row: row["Ticket"])
+    else:
+        filtered.sort(key=lambda row: float(row["Confidence"].rstrip("%")), reverse=True)
     if filtered:
         st.dataframe(filtered, width="stretch", hide_index=True)
         st.download_button("Download filtered results (CSV)", csv_bytes(filtered), "resolveflow-results.csv", "text/csv")
@@ -519,7 +537,13 @@ def main() -> None:
         page = st.radio("Workspace", ["Ticket triage", "Quality check", "How it works"], label_visibility="collapsed")
         st.divider()
         st.markdown("**System status**")
-        st.caption(f"AI mode: {'Reliable demo mode' if USING_DEMO_PROVIDER else 'Hosted model selected'}")
+        provider_options = ["Reliable demo classifier"]
+        if not USING_DEMO_PROVIDER:
+            provider_options.append("Configured hosted model")
+        if st.session_state.provider_mode not in provider_options:
+            st.session_state.provider_mode = provider_options[0]
+        st.selectbox("Processing mode", provider_options, key="provider_mode")
+        st.caption("Demo mode is repeatable. Hosted mode uses your configured provider and safely escalates on failure.")
         mcp_ok = any(item.get("mcp_connected") for item in st.session_state.results.values())
         st.caption(f"Support knowledge base: {'Connected' if mcp_ok else 'Ready'}")
         with st.expander("Technical details"):

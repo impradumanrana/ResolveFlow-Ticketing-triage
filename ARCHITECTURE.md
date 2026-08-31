@@ -98,7 +98,7 @@ Route precedence:
 
 ## UI structure
 
-- **Ticket triage:** KPIs, 6- or 36-ticket sample batches, validated CSV import up to 50 tickets, single-ticket form, source/status/search filters, queue, compact ticket facts, response/handoff, compact MCP evidence, seven-step trace, reviewer override, audit log, and downloads.
+- **Ticket triage:** KPIs, 6- or 36-ticket sample batches, empty and 45-ticket CSV downloads, validated CSV import up to 50 tickets, single-ticket form, source/status/search filters, priority sorting, SLA response targets, queue, compact ticket facts, response/handoff, compact MCP evidence, seven-step trace, reviewer override, audit log, and downloads.
 - **Quality check:** measured golden metrics, route distribution, expected-vs-actual table.
 - **How it works:** rendered graph flow, MCP process boundary, route contract, and safety policy.
 

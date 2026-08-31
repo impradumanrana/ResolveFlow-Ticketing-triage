@@ -16,6 +16,9 @@ The original hackathon brief and every root Markdown file were reviewed. Playboo
 - Fixed dark-theme text leaking into light cards and forms; added explicit high-contrast metric, label, input, select, alert, and button styles plus clearer plain-language navigation and onboarding.
 - Added the ordered six-case demo and 36-ticket / 15-golden fixture set.
 - Added selectable 6- and 36-ticket sample batches, CSV import with validation/template, operational source and status columns, and compact ticket/MCP evidence cards.
+- Added an editable 45-ticket realistic CSV, empty template, duplicate-ID protection, privacy guidance, SLA response targets, and priority-first queue sorting.
+- Fixed the sidebar Technical details expander with explicit dark backgrounds and readable text for collapsed, expanded, and hover states.
+- Added an explicit processing-mode selector so deterministic demo runs and configured hosted-model runs cannot be confused.
 - Replaced user-facing `KB` abbreviations with “Support knowledge base,” “Help article,” and “Article match”; raw MCP terms remain only in the technical evidence areas.
 - Replaced weak tests with coverage for every blocking rule, threshold boundary, provider failure, MCP outage, injection resistance, citation, exact trace, golden metrics, and rendered UI interactions.
 - Added verified Makefile targets.
