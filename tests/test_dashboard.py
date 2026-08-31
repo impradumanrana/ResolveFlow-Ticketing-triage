@@ -56,11 +56,13 @@ def test_dashboard_demo_and_navigation_render_without_errors():
 
     next(item for item in app.radio if item.label == "Workspace").set_value("Quality check").run()
     assert not app.exception
-    assert any(button.label == "Run live OpenAI quality check" for button in app.button)
+    assert any(button.label.startswith("Run check on these ") and button.label.endswith(" articles") for button in app.button)
+    assert any("current Support knowledge" in item.value for item in app.subheader)
 
     next(item for item in app.radio if item.label == "Workspace").set_value("How it works").run()
     assert not app.exception
     assert any("Real MCP boundary" in markdown.value for markdown in app.markdown)
+    assert any("What Quality check actually measures" in markdown.value for markdown in app.markdown)
 
 
 def test_theme_has_explicit_light_contrast_rules():
@@ -70,15 +72,25 @@ def test_theme_has_explicit_light_contrast_rules():
     assert 'base = "light"' in theme
     assert 'textColor = "#172033"' in theme
     for selector in [
-        "stMetricLabel", "stMetricValue", "stWidgetLabel", "baseButton-secondary",
+        "stMetricLabel", "stMetricValue", "stWidgetLabel", "stBaseButton-secondary",
         "stExpanderDetails", "stTextInput", "stSelectbox", "stFileUploaderDropzone",
-        'data-baseweb="tab"', 'role="listbox"', "focus-within", "focus-visible", "span.status-pill",
+        '[data-testid="stTab"]', 'role="listbox"', "focus-within", "focus-visible", "span.status-pill",
     ]:
         assert selector in dashboard
     assert "#06633f" in dashboard
-    assert "border:1.5px solid #8792a5" in dashboard
-    assert '.stApp div[data-baseweb="select"] > div' in dashboard
-    assert '[data-testid="stNumberInput"]' in dashboard
+    # Field borders must be an explicit visible colour, never the default white-on-white.
+    assert "border:1.5px solid #6f7d99" in dashboard
+    for field_selector in [
+        '[data-testid="stTextInputRootElement"]',
+        '[data-testid="stTextAreaRootElement"]',
+        '[data-testid="stSelectbox"] div[role="group"]',
+        '[data-testid="portal"] [role="listbox"]',
+    ]:
+        assert field_selector in dashboard
+    # Regression guard: this Streamlit build emits no data-baseweb attributes, so any
+    # rule written against them is silently dead and the control loses its border.
+    assert "[data-baseweb=" not in dashboard
+    assert "background:linear-gradient(155deg" in dashboard
 
 
 class UploadedCSV:

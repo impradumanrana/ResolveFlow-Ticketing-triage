@@ -22,3 +22,7 @@ app/data/
 build/
 dist/
 *.egg-info/
+
+# Local screenshots / browser automation
+.playwright-mcp/
+*.png

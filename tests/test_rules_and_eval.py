@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
+import app.eval as eval_module
 import app.graph as graph_module
-from app.eval import build_eval_report
+from app.eval import build_eval_report, knowledge_fingerprint, select_probe_articles
 from app.graph import build_workflow
 from app.guardrails import evaluate_guardrails
 from app.mcp_client import MCPClient
@@ -129,6 +130,27 @@ def test_protected_demo_corpus_is_independent_of_user_knowledge(tmp_path):
     results = MCPClient(kb_db_path=demo_path).search("forgot password reset link", "technical", 3)
     assert results[0]["article_id"] == "KB-001"
     assert all(item["article_id"] != "USER-ONLY" for item in results)
+
+
+def test_operational_quality_uses_current_article_sample(monkeypatch):
+    articles = [
+        {"article_id": "USER-1", "title": "User refund", "category": "billing", "excerpt": "Refund help", "_source": "Ingested document", "updated_at": "1"},
+        {"article_id": "USER-2", "title": "User login", "category": "account", "excerpt": "Login help", "_source": "Imported replacement", "updated_at": "2"},
+        {"article_id": "KB-1", "title": "Built-in sync", "category": "technical", "excerpt": "Sync help", "_source": "Built-in", "updated_at": "3"},
+    ]
+
+    class ProbeProvider(DeterministicProvider):
+        def generate_retrieval_probes(self, sampled):
+            return [{"article_id": row["article_id"], "query": f"question for {row['article_id']}", "category": row["category"]} for row in sampled]
+
+    monkeypatch.setattr(eval_module, "list_articles", lambda: articles)
+    monkeypatch.setattr(eval_module, "knowledge_stats", lambda: {"articles": 3})
+    monkeypatch.setattr(eval_module, "build_eval_report", lambda **kwargs: {"retrieval_rows": kwargs["retrieval_cases"]})
+    report = eval_module.build_operational_eval_report(provider=ProbeProvider(), mcp_client=object())
+    assert report["evaluation_scope"] == "Current operational Support knowledge base"
+    assert {row["expected"] for row in report["retrieval_rows"]} == {"USER-1", "USER-2", "KB-1"}
+    assert report["knowledge_fingerprint"] == knowledge_fingerprint(articles)
+    assert select_probe_articles(articles) == articles
 
 
 def test_mcp_loader_ingests_built_in_and_custom_articles(tmp_path, monkeypatch):

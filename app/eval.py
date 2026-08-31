@@ -1,11 +1,14 @@
 import json
+import hashlib
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from app.config import KB_THRESHOLD, OPENAI_MODEL
 from app.graph import build_workflow
 from app.mcp_client import MCPClient
-from app.knowledge_store import prepare_demo_knowledge
+from app.knowledge_store import knowledge_stats, list_articles, prepare_demo_knowledge
 from app.models import Ticket
 from app.providers import DeterministicProvider, OpenAIProvider
 
@@ -70,7 +73,42 @@ def run_golden_eval(provider=None, mcp_client=None):
     return results
 
 
-def build_eval_report(provider=None, run_label: str = "Deterministic test classifier + real MCP stdio", mcp_client=None) -> dict:
+def knowledge_fingerprint(articles: list[dict[str, Any]]) -> str:
+    values = [f"{item['article_id']}|{item.get('updated_at', '')}|{item.get('_source', '')}" for item in articles]
+    return hashlib.sha256("\n".join(sorted(values)).encode()).hexdigest()[:12]
+
+
+def select_probe_articles(articles: list[dict[str, Any]], limit: int = 8) -> list[dict[str, Any]]:
+    """Choose a stable, source-aware sample from the actual operational corpus."""
+    if not articles:
+        return []
+    imported = [item for item in articles if item.get("_source") != "Built-in"]
+    built_in = [item for item in articles if item.get("_source") == "Built-in"]
+
+    def spread(items: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:
+        ordered = sorted(items, key=lambda item: item["article_id"])
+        if len(ordered) <= count:
+            return ordered
+        if count == 1:
+            return [ordered[len(ordered) // 2]]
+        indexes = [round(index * (len(ordered) - 1) / (count - 1)) for index in range(count)]
+        return [ordered[index] for index in indexes]
+
+    imported_count = min(len(imported), 6 if built_in else limit)
+    selected = spread(imported, imported_count)
+    selected.extend(spread(built_in, min(len(built_in), limit - len(selected))))
+    if len(selected) < limit:
+        remaining = [item for item in articles if item["article_id"] not in {row["article_id"] for row in selected}]
+        selected.extend(spread(remaining, min(len(remaining), limit - len(selected))))
+    return selected[:limit]
+
+
+def build_eval_report(
+    provider=None,
+    run_label: str = "Deterministic test classifier + real MCP stdio",
+    mcp_client=None,
+    retrieval_cases: list[dict[str, Any]] | None = None,
+) -> dict:
     mcp_client = mcp_client or MCPClient()
     rows = run_golden_eval(provider, mcp_client)
     total = len(rows)
@@ -78,14 +116,19 @@ def build_eval_report(provider=None, run_label: str = "Deterministic test classi
     route_counts = Counter(row["actual_route"] for row in rows)
     retrieval_client = mcp_client
     retrieval_rows = []
-    for case in RETRIEVAL_CASES:
+    active_retrieval_cases = RETRIEVAL_CASES if retrieval_cases is None else retrieval_cases
+    for case in active_retrieval_cases:
         matches = retrieval_client.search(case["query"], case["category"], 3)
         top = matches[0] if matches else None
+        expected = case.get("expected") or case.get("article_id")
         retrieval_rows.append({
             **case,
+            "expected": expected,
             "actual": top.get("article_id") if top else None,
+            "actual_title": top.get("title") if top else None,
             "score": top.get("score", 0.0) if top else 0.0,
-            "passed": bool(top and top.get("article_id") == case["expected"] and top.get("score", 0.0) >= KB_THRESHOLD),
+            "above_threshold": bool(top and top.get("score", 0.0) >= KB_THRESHOLD),
+            "passed": bool(top and top.get("article_id") == expected and top.get("score", 0.0) >= KB_THRESHOLD),
         })
     auto_rows = [row for row in rows if row["actual_route"] == "AUTO_RESOLVE"]
     return {
@@ -95,7 +138,7 @@ def build_eval_report(provider=None, run_label: str = "Deterministic test classi
         "route_accuracy": round(sum(row["actual_route"] == row["expected_route"] for row in rows) / total, 4),
         "high_risk_recall": round(sum(row["actual_route"] == "ESCALATE" for row in expected_high_risk) / max(1, len(expected_high_risk)), 4),
         "unsafe_auto_resolves": sum(row["expected_route"] == "ESCALATE" and row["actual_route"] == "AUTO_RESOLVE" for row in rows),
-        "retrieval_top1_accuracy": round(sum(row["passed"] for row in retrieval_rows) / len(retrieval_rows), 4),
+        "retrieval_top1_accuracy": round(sum(row["passed"] for row in retrieval_rows) / max(1, len(retrieval_rows)), 4),
         "grounded_draft_rate": round(sum(row["grounded"] for row in auto_rows) / max(1, len(auto_rows)), 4),
         "mcp_trace_completeness": round(sum(row["mcp_trace_complete"] for row in rows) / total, 4),
         "average_latency_ms": round(sum(row["processing_ms"] for row in rows) / total),
@@ -103,6 +146,45 @@ def build_eval_report(provider=None, run_label: str = "Deterministic test classi
         "rows": rows,
         "retrieval_rows": retrieval_rows,
     }
+
+
+def build_operational_eval_report(provider=None, mcp_client=None) -> dict:
+    """Measure the configured model and the current user-managed Support knowledge base."""
+    provider = provider or OpenAIProvider()
+    mcp_client = mcp_client or MCPClient()
+    articles = list_articles()
+    if not articles:
+        raise ValueError("The Support knowledge base is empty")
+    sampled = select_probe_articles(articles)
+    generated = provider.generate_retrieval_probes(sampled)
+    article_by_id = {article["article_id"]: article for article in sampled}
+    cases = [{
+        "query": probe["query"],
+        "category": probe["category"],
+        "expected": probe["article_id"],
+        "expected_title": article_by_id[probe["article_id"]]["title"],
+        "source": article_by_id[probe["article_id"]].get("_source", "Unknown"),
+    } for probe in generated]
+    stats = knowledge_stats()
+    report = build_eval_report(
+        provider=provider,
+        run_label=(
+            f"OpenAI {OPENAI_MODEL} + current Support knowledge "
+            f"({len(articles)} articles) + real MCP stdio"
+        ),
+        mcp_client=mcp_client,
+        retrieval_cases=cases,
+    )
+    report.update({
+        "evaluation_scope": "Current operational Support knowledge base",
+        "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "knowledge_fingerprint": knowledge_fingerprint(articles),
+        "knowledge_stats": stats,
+        "knowledge_categories": dict(Counter(article["category"] for article in articles)),
+        "knowledge_sources": dict(Counter(article.get("_source", "Unknown") for article in articles)),
+        "sampled_article_ids": [article["article_id"] for article in sampled],
+    })
+    return report
 
 
 if __name__ == "__main__":

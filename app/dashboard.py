@@ -16,7 +16,7 @@ import streamlit as st
 
 from app.cli import triage_ticket
 from app.config import HAS_OPENAI_KEY, KB_THRESHOLD, OPENAI_EMBEDDING_MODEL, OPENAI_MODEL
-from app.eval import build_eval_report
+from app.eval import build_operational_eval_report, knowledge_fingerprint
 from app.knowledge_store import (
     add_articles,
     clear_articles,
@@ -229,48 +229,49 @@ def apply_theme() -> None:
     st.markdown(
         """
         <style>
-        :root { --navy:#0b1739; --indigo:#4f46e5; --ink:#172033; --muted:#596579; --paper:#f7f8fc; }
-        .stApp { background:linear-gradient(135deg,#fbfaf7 0%,#f7f8fc 58%,#eef1fb 100%); color:var(--ink); }
+        :root { --navy:#0b1739; --indigo:#4f46e5; --ink:#172033; --muted:#596579; --paper:#e9eef9;
+                --field-border:#6f7d99; --field-shadow:0 1px 3px rgba(16,24,40,.13); }
+        .stApp { background:linear-gradient(155deg,#eef1fb 0%,#e5ebf8 38%,#dde6f6 68%,#e8e6fa 100%) fixed;
+                 background-size:cover; min-height:100vh; color:var(--ink); }
+        [data-testid="stHeader"], [data-testid="stToolbar"] { background:transparent !important; }
+        [data-testid="stMain"], [data-testid="stAppViewContainer"] > .main { background:transparent !important; }
         [data-testid="stMain"] { color:var(--ink); }
         [data-testid="stMain"] h1, [data-testid="stMain"] h2, [data-testid="stMain"] h3, [data-testid="stMain"] h4 { color:#10182b !important; }
         [data-testid="stMain"] [data-testid="stWidgetLabel"] p,
         [data-testid="stMain"] label p,
         [data-testid="stMain"] summary span { color:#344054 !important; font-weight:600; }
-        .stApp input, .stApp textarea { color:#172033 !important; background:#fff !important; caret-color:#4f46e5 !important; }
-        .stApp [data-testid="stTextInput"] [data-baseweb="input"],
-        .stApp [data-testid="stTextArea"] [data-baseweb="textarea"],
-        .stApp [data-baseweb="input"],
-        .stApp [data-baseweb="textarea"],
-        .stApp [data-testid="stNumberInput"] > div > div { background:#fff !important; border:1.5px solid #8792a5 !important; border-radius:9px !important; box-shadow:0 1px 3px rgba(16,24,40,.09) !important; }
-        .stApp [data-baseweb="input"]:hover,
-        .stApp [data-baseweb="textarea"]:hover,
-        .stApp [data-testid="stNumberInput"] > div > div:hover { border-color:#596579 !important; }
-        .stApp [data-baseweb="input"]:focus-within,
-        .stApp [data-baseweb="textarea"]:focus-within,
-        .stApp [data-testid="stNumberInput"] > div > div:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.18) !important; }
+        /* Field surfaces. This Streamlit build exposes no data-baseweb attributes, so every
+           control is targeted by its stable data-testid or ARIA role. */
+        .stApp [data-testid="stTextInputField"],
+        .stApp textarea,
+        .stApp [role="combobox"] { color:#172033 !important; background:transparent !important; caret-color:#4f46e5 !important; }
+        .stApp [data-testid="stTextInputRootElement"],
+        .stApp [data-testid="stTextAreaRootElement"],
+        .stApp [data-testid="stSelectbox"] div[role="group"] { background:#fff !important; border:1.5px solid #6f7d99 !important; border-radius:9px !important; box-shadow:var(--field-shadow) !important; }
+        .stApp [data-testid="stSelectbox"] div[role="group"] { min-height:42px !important; cursor:pointer !important; }
+        .stApp [data-testid="stTextInputRootElement"]:hover,
+        .stApp [data-testid="stTextAreaRootElement"]:hover,
+        .stApp [data-testid="stSelectbox"] div[role="group"]:hover { border-color:#44506b !important; }
+        .stApp [data-testid="stTextInputRootElement"]:focus-within,
+        .stApp [data-testid="stTextAreaRootElement"]:focus-within,
+        .stApp [data-testid="stSelectbox"] div[role="group"]:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.18) !important; }
         .stApp input::placeholder, .stApp textarea::placeholder { color:#697386 !important; opacity:1; }
-        .stApp [data-testid="stSelectbox"] [data-baseweb="select"] > div,
-        .stApp [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
-        .stApp div[data-baseweb="select"] > div { background:#fff !important; color:#172033 !important; border:1.5px solid #8792a5 !important; border-radius:9px !important; min-height:42px !important; box-shadow:0 1px 3px rgba(16,24,40,.09) !important; cursor:pointer !important; }
-        .stApp [data-baseweb="select"] > div:hover { border-color:#596579 !important; background:#fdfdff !important; }
-        .stApp [data-baseweb="select"] > div:focus-within { border-color:#4f46e5 !important; box-shadow:0 0 0 3px rgba(79,70,229,.18) !important; }
-        .stApp [data-baseweb="select"] span { color:#172033 !important; }
-        .stApp [data-baseweb="select"] svg { color:#344054 !important; fill:#344054 !important; width:18px !important; height:18px !important; }
-        [data-baseweb="popover"] [role="listbox"] { background:#fff !important; border:1px solid #98a2b3 !important; border-radius:8px !important; box-shadow:0 12px 28px rgba(16,24,40,.16) !important; }
-        [data-baseweb="popover"] [role="option"] { color:#172033 !important; background:#fff !important; }
-        [data-baseweb="popover"] [role="option"]:hover,
-        [data-baseweb="popover"] [aria-selected="true"] { background:#eef2ff !important; color:#312e81 !important; }
-        .stApp [data-testid="stFileUploaderDropzone"] { background:#fff !important; border:1.5px dashed #8792a5 !important; border-radius:10px !important; color:#344054 !important; }
+        .stApp [data-testid="stSelectbox"] svg { color:#344054 !important; fill:#344054 !important; width:18px !important; height:18px !important; }
+        /* The open dropdown menu renders in a detached portal, outside .stApp. */
+        [data-testid="portal"] [role="listbox"] { background:#fff !important; border:1px solid #98a2b3 !important; border-radius:10px !important; box-shadow:0 12px 28px rgba(16,24,40,.18) !important; }
+        [data-testid="portal"] [role="option"] { color:#172033 !important; background:#fff !important; }
+        [data-testid="portal"] [role="option"]:hover,
+        [data-testid="portal"] [role="option"][aria-selected="true"] { background:#eef2ff !important; color:#312e81 !important; }
+        .stApp [data-testid="stFileUploaderDropzone"] { background:#fff !important; border:1.5px dashed #6f7d99 !important; border-radius:10px !important; color:#344054 !important; }
         .stApp [data-testid="stFileUploaderDropzone"]:hover { border-color:#4f46e5 !important; background:#f7f7ff !important; }
         [data-testid="stMain"] [data-testid="stFileUploaderDropzone"] small,
         [data-testid="stMain"] [data-testid="stFileUploaderDropzone"] span { color:#596579 !important; opacity:1 !important; }
-        [data-testid="stMain"] [data-baseweb="tab-list"] { gap:6px; border-bottom:1px solid #cfd5e3 !important; }
-        [data-testid="stMain"] [data-baseweb="tab"] { color:#475467 !important; background:#f5f7fb !important; border:1px solid #d0d5dd !important; border-bottom:0 !important; border-radius:9px 9px 0 0 !important; padding:10px 16px !important; }
-        [data-testid="stMain"] [data-baseweb="tab"][aria-selected="true"] { color:#3730a3 !important; background:#fff !important; border-color:#818cf8 !important; font-weight:750 !important; box-shadow:inset 0 3px 0 #4f46e5 !important; }
+        [data-testid="stTabs"] [role="tablist"] { gap:6px; border-bottom:1px solid #c3cbdd !important; }
+        [data-testid="stTabs"] [data-testid="stTab"] { color:#475467 !important; background:rgba(255,255,255,.55) !important; border:1px solid #c3cbdd !important; border-bottom:0 !important; border-radius:9px 9px 0 0 !important; padding:10px 16px !important; }
+        [data-testid="stTabs"] [data-testid="stTab"][aria-selected="true"] { color:#3730a3 !important; background:#fff !important; border-color:#818cf8 !important; font-weight:750 !important; box-shadow:inset 0 3px 0 #4f46e5 !important; }
         [data-testid="stMain"] [data-testid="stRadio"] label { border-radius:8px; padding:4px 7px; }
         [data-testid="stMain"] [data-testid="stRadio"] label:hover { background:#f1f4ff !important; }
-        [data-testid="stMain"] [data-testid="stRadio"] [data-baseweb="radio"] > div:first-child,
-        [data-testid="stMain"] [data-testid="stCheckbox"] [data-baseweb="checkbox"] > div:first-child { border-color:#667085 !important; }
+        [data-testid="stMain"] [data-testid="stRadioOption"] > div:first-child { border-color:#667085 !important; }
         [data-testid="stMain"] [data-testid="stExpander"] details { background:#fff !important; border:1px solid #cfd5e3 !important; border-radius:10px !important; }
         [data-testid="stMain"] [data-testid="stExpander"] summary:hover { background:#f7f8fc !important; }
         [data-testid="stMain"] textarea:disabled,
@@ -288,10 +289,13 @@ def apply_theme() -> None:
         [data-testid="stMain"] button[kind="primary"]:hover { background:#4338ca !important; border-color:#4338ca !important; }
         [data-testid="stMain"] button:focus-visible { outline:3px solid rgba(79,70,229,.28) !important; outline-offset:2px !important; }
         [data-testid="stMain"] button:disabled { opacity:.58 !important; cursor:not-allowed !important; }
-        [data-testid="stMain"] [data-testid="baseButton-secondary"] { background:#fff !important; color:#26334d !important; border:1px solid #bfc7d8 !important; }
-        [data-testid="stMain"] [data-testid="baseButton-secondary"] p { color:#26334d !important; font-weight:700 !important; }
-        [data-testid="stMain"] [data-testid="baseButton-primary"] { background:#4f46e5 !important; color:#fff !important; border-color:#4f46e5 !important; }
-        [data-testid="stMain"] [data-testid="baseButton-primary"] p { color:#fff !important; font-weight:750 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-secondary"] { background:#fff !important; color:#26334d !important; border:1px solid #bfc7d8 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-secondary"] p { color:#26334d !important; font-weight:700 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-primary"] { background:#4f46e5 !important; color:#fff !important; border-color:#4f46e5 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-primary"] p { color:#fff !important; font-weight:750 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-primaryFormSubmit"] { background:#4f46e5 !important; color:#fff !important; border-color:#4f46e5 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-primaryFormSubmit"] p { color:#fff !important; font-weight:750 !important; }
+        [data-testid="stMain"] [data-testid="stBaseButton-secondaryFormSubmit"] { background:#fff !important; color:#26334d !important; border:1px solid #bfc7d8 !important; }
         [data-testid="stMain"] [data-testid="stAlert"] p { color:#25324b !important; }
         .hero { padding:26px 28px; background:linear-gradient(115deg,#101d43,#222969 65%,#5b5bd6); border-radius:22px; color:white; margin-bottom:22px; box-shadow:0 18px 48px rgba(18,30,72,.18); }
         .hero h1 { margin:0; font-size:2.25rem; letter-spacing:-.04em; color:#fff !important; }
@@ -699,47 +703,93 @@ def operations_view() -> None:
 
 
 def evaluation_view() -> None:
-    st.subheader("Quality and readiness check")
-    st.write("Run a live evaluation of the configured OpenAI model, safety routing, hybrid knowledge retrieval, grounded answers, and MCP trace evidence.")
-    st.info(f"Active classifier: OpenAI `{OPENAI_MODEL}` · protected 15-article evaluation corpus · 15 labelled tickets + 9 paraphrase searches · Nothing is sent to customers.")
-    if st.button("Run live OpenAI quality check", type="primary"):
-        with st.spinner("Running the current OpenAI model and real MCP searches. This can take about a minute…"):
-            st.session_state.eval_report = build_eval_report(
-                provider=OpenAIProvider(),
-                run_label=f"OpenAI {OPENAI_MODEL} + hybrid knowledge + real MCP stdio",
-                mcp_client=MCPClient(kb_db_path=prepare_demo_knowledge()),
-            )
+    current_articles = load_knowledge_articles()
+    current_stats = knowledge_stats()
+    current_fingerprint = knowledge_fingerprint(current_articles)
+    st.subheader("Quality check · current Support knowledge")
+    st.write("Measure the configured OpenAI model and the same operational Support knowledge base used by manually entered and CSV-imported tickets.")
+    compact_facts([
+        ("Stored articles", current_stats["articles"]),
+        ("Added / imported", current_stats["user_added"]),
+        ("Embedding model", current_stats["embedding_model"]),
+        ("Vector search", current_stats["vector_database"]),
+    ], "quality-snapshot")
+    source_counts = Counter(article.get("_source", "Unknown") for article in current_articles)
+    category_counts = Counter(article["category"].title() for article in current_articles)
+    st.caption(
+        "Current data snapshot · "
+        + " · ".join(f"{name}: {count}" for name, count in sorted(source_counts.items()))
+        + " · Categories: "
+        + ", ".join(f"{name} {count}" for name, count in sorted(category_counts.items()))
+    )
+    if current_articles and max(category_counts.values(), default=0) / len(current_articles) >= 0.8:
+        dominant = max(category_counts, key=category_counts.get)
+        st.warning(
+            f"Knowledge-category check: {category_counts[dominant]} of {len(current_articles)} articles are tagged "
+            f"{dominant}. If the uploaded material covers several departments, re-ingest it with per-section "
+            "Category labels or use the categorized knowledge CSV; incorrect tags can weaken reranking."
+        )
+    st.info(
+        f"What runs: OpenAI `{OPENAI_MODEL}` classifies 15 labelled tickets; OpenAI creates customer-style "
+        "questions for up to 8 sampled stored articles; every question and ticket calls the real MCP/Qdrant "
+        "search; answer drafts must pass citation and grounding validation. Nothing is sent to customers."
+    )
+    run_disabled = not current_articles or not HAS_OPENAI_KEY
+    if not current_articles:
+        st.warning("The Support knowledge base is empty. Add or ingest approved guidance before running this check.")
+    if st.button(
+        f"Run check on these {len(current_articles)} articles",
+        type="primary",
+        disabled=run_disabled,
+    ):
+        with st.spinner("Sampling stored articles, generating paraphrase probes, running MCP searches, and triaging labelled tickets…"):
+            try:
+                st.session_state.eval_report = build_operational_eval_report(
+                    provider=OpenAIProvider(),
+                    mcp_client=MCPClient(),
+                )
+            except Exception as exc:
+                st.session_state.eval_report = None
+                st.error(
+                    "The quality check stopped safely before producing metrics. Verify OpenAI and Support "
+                    f"knowledge connectivity, then retry. Technical detail: {type(exc).__name__}."
+                )
     report = st.session_state.eval_report
+    if report and report.get("evaluation_scope") != "Current operational Support knowledge base":
+        st.session_state.eval_report = None
+        report = None
     if not report:
-        st.info("Run the check to generate fresh measured results. Metrics are not precomputed or fabricated.")
+        st.info("Run the check to create fresh metrics from the current stored articles. No results are precomputed or fabricated.")
         return
-    st.caption(report["run_label"])
+    if report.get("knowledge_fingerprint") != current_fingerprint:
+        st.warning("The Support knowledge base changed after this run. Run the check again before relying on these results.")
+    st.caption(f"Measured {report.get('evaluated_at', 'just now')} · {report['run_label']} · Snapshot {report.get('knowledge_fingerprint', '—')}")
     checks = [
-        ("Classification", report["category_accuracy"] >= 0.85),
-        ("Routing", report["route_accuracy"] >= 0.85),
-        ("Safety recall", report["high_risk_recall"] == 1.0),
-        ("Unsafe automation", report["unsafe_auto_resolves"] == 0),
-        ("Knowledge retrieval", report["retrieval_top1_accuracy"] >= 0.9),
-        ("Grounding", report["grounded_draft_rate"] == 1.0),
-        ("MCP evidence", report["mcp_trace_completeness"] == 1.0),
+        ("Ticket classification", "≥ 85%", report["category_accuracy"] >= 0.85),
+        ("End-to-end routing", "≥ 80%", report["route_accuracy"] >= 0.8),
+        ("High-risk recall", "100%", report["high_risk_recall"] == 1.0),
+        ("Unsafe automation", "0", report["unsafe_auto_resolves"] == 0),
+        ("Stored-article retrieval", "≥ 75%", report["retrieval_top1_accuracy"] >= 0.75),
+        ("Grounded answer drafts", "100%", report["grounded_draft_rate"] == 1.0),
+        ("Complete MCP evidence", "100%", report["mcp_trace_completeness"] == 1.0),
     ]
-    passed_checks = sum(passed for _, passed in checks)
+    passed_checks = sum(passed for _, _, passed in checks)
     if passed_checks == len(checks):
-        st.success(f"Ready for demonstration · all {passed_checks} quality gates passed")
+        st.success(f"Current Support knowledge is ready · all {passed_checks} measured gates passed")
     else:
-        st.warning(f"Review recommended · {passed_checks} of {len(checks)} quality gates passed")
+        st.warning(f"Current Support knowledge needs review · {passed_checks} of {len(checks)} measured gates passed")
 
     first_metrics = st.columns(4)
     for column, (label, value) in zip(first_metrics, [
         ("Category accuracy", f"{report['category_accuracy']:.0%}"),
-        ("Route accuracy", f"{report['route_accuracy']:.0%}"),
+        ("Route readiness", f"{report['route_accuracy']:.0%}"),
         ("High-risk recall", f"{report['high_risk_recall']:.0%}"),
         ("Unsafe auto-resolves", report["unsafe_auto_resolves"]),
     ]):
         column.metric(label, value)
     second_metrics = st.columns(4)
     for column, (label, value) in zip(second_metrics, [
-        ("Knowledge top-1", f"{report['retrieval_top1_accuracy']:.0%}"),
+        ("Stored article found", f"{report['retrieval_top1_accuracy']:.0%}"),
         ("Grounded drafts", f"{report['grounded_draft_rate']:.0%}"),
         ("Complete MCP traces", f"{report['mcp_trace_completeness']:.0%}"),
         ("Average latency", f"{report['average_latency_ms']} ms"),
@@ -747,10 +797,31 @@ def evaluation_view() -> None:
         column.metric(label, value)
 
     st.subheader("Quality gates")
-    st.dataframe([{"Check": label, "Target": "Pass", "Status": "PASS" if passed else "REVIEW"} for label, passed in checks], width="stretch", hide_index=True)
+    st.dataframe([
+        {"Check": label, "Target": target, "Measured status": "PASS" if passed else "REVIEW"}
+        for label, target, passed in checks
+    ], width="stretch", hide_index=True)
+    st.caption("A REVIEW result is actionable evidence, not a hidden failure: inspect the tables below to see the exact ticket or stored article that missed its target.")
+    failed_labels = [label for label, _, passed in checks if not passed]
+    if failed_labels:
+        st.markdown("#### Recommended next actions")
+        recommendations = []
+        if "Stored-article retrieval" in failed_labels:
+            recommendations.append("Open **Support knowledge → Test search** for failed questions; improve article titles, category labels, keywords, or split broad documents into focused sections.")
+        if "End-to-end routing" in failed_labels:
+            recommendations.append("Review tickets marked REVIEW below. Safe tickets held for a person usually indicate missing or weak approved guidance rather than unsafe model behavior.")
+        if "Grounded answer drafts" in failed_labels:
+            recommendations.append("Make approved answers self-contained and explicit enough to support every response claim with an exact quote.")
+        if "Complete MCP evidence" in failed_labels:
+            recommendations.append("Verify the MCP server, SQLite path, Qdrant index, and OpenAI embedding connection, then rerun the check.")
+        if "Ticket classification" in failed_labels:
+            recommendations.append("Inspect category mismatches and clarify ambiguous ticket wording or category definitions before changing safety rules.")
+        for recommendation in recommendations:
+            st.markdown(f"- {recommendation}")
     st.subheader("Route distribution")
     st.bar_chart(report["route_distribution"])
-    st.subheader("Ticket classification and routing")
+    st.subheader("15 live ticket checks")
+    st.write("These labelled tickets are classified and routed against the current Support knowledge snapshot. A safe ticket may be held for a person when the current knowledge does not contain strong enough evidence.")
     st.dataframe([{
         "Ticket": row["ticket_id"],
         "Expected category": row["expected_category"],
@@ -758,17 +829,28 @@ def evaluation_view() -> None:
         "Expected route": row["expected_route"],
         "Actual route": row["actual_route"],
         "Article": row["kb_article"] or "—",
+        "Article match": f"{row['kb_score']:.0%}" if row["kb_article"] else "—",
+        "Grounded": "Yes" if row["grounded"] else "Review",
         "MCP trace": "Complete" if row["mcp_trace_complete"] else "Review",
         "Result": "PASS" if row["passed"] else "REVIEW",
     } for row in report["rows"]], width="stretch", hide_index=True)
-    st.subheader("Knowledge paraphrase retrieval")
+    st.subheader("What the Support knowledge search actually checked")
+    st.write("OpenAI rewrote sampled stored articles as short customer questions without revealing their answers. MCP then searched the current Qdrant/SQLite collection; the expected article must return first and exceed the answer threshold.")
     st.dataframe([{
-        "Customer wording": row["query"],
-        "Expected article": row["expected"],
-        "Retrieved article": row["actual"] or "—",
+        "Generated customer question": row["query"],
+        "Stored source": row.get("source", "—"),
+        "Expected stored article": f"{row['expected']} · {row.get('expected_title', '')}",
+        "Top MCP result": f"{row['actual']} · {row.get('actual_title', '')}" if row["actual"] else "—",
         "Match": f"{row['score']:.0%}",
+        "Above answer threshold": "Yes" if row.get("above_threshold") else "No",
         "Result": "PASS" if row["passed"] else "REVIEW",
     } for row in report["retrieval_rows"]], width="stretch", hide_index=True)
+    st.download_button(
+        "Download measured quality report (JSON)",
+        json.dumps(report, indent=2),
+        "resolveflow-current-knowledge-quality.json",
+        "application/json",
+    )
     st.caption("Time-saved estimate: 4 minutes per safely auto-resolved ticket; this is an explicit demo assumption.")
 
 
@@ -996,8 +1078,17 @@ def knowledge_base_view() -> None:
 
 
 def architecture_view() -> None:
+    current_stats = knowledge_stats()
     st.subheader("How ResolveFlow works")
-    st.write("ResolveFlow turns individual requests or CSV batches into a prioritized support queue. Every ticket follows the same visible workflow and nothing is sent to a customer automatically.")
+    st.write("ResolveFlow turns individual requests or CSV batches into a prioritized support queue. Every ticket follows the same visible workflow, searches approved stored guidance, and keeps customer sending disabled.")
+    st.markdown("### Live system snapshot")
+    compact_facts([
+        ("Support articles", current_stats["articles"]),
+        ("Added / imported", current_stats["user_added"]),
+        ("Dense embedding", current_stats["embedding_model"]),
+        ("Search engine", current_stats["search_method"]),
+    ])
+    st.caption("These are live values from the operational Support knowledge base—not presentation placeholders.")
     st.markdown(
         """
         <div class="flow">
@@ -1008,7 +1099,7 @@ def architecture_view() -> None:
           <div class="how-card"><div class="step">Step 1</div><b>Load requests</b>Paste one ticket, load 6 or 36 samples, or upload a CSV containing up to 50 tickets.</div>
           <div class="how-card"><div class="step">Step 2</div><b>Understand the issue</b>Assign billing, technical, or account category plus urgency and recommended team.</div>
           <div class="how-card"><div class="step">Step 3</div><b>Apply safety controls</b>Detect anger, threats, payment failure, security risk, missing information, and other blockers.</div>
-          <div class="how-card"><div class="step">Step 4</div><b>Retrieve and rerank evidence</b>Call MCP, search OpenAI embeddings in Qdrant, combine BM25 keywords, then rerank the strongest passages.</div>
+          <div class="how-card"><div class="step">Step 4</div><b>Retrieve and rerank stored evidence</b>Call MCP, search the current Support knowledge vectors in Qdrant, combine BM25 keywords, then rerank the strongest passages.</div>
           <div class="how-card"><div class="step">Step 5</div><b>Generate only from evidence</b>OpenAI can prepare a draft only from retrieved passages, with article citations and exact support quotes.</div>
           <div class="how-card"><div class="step">Step 6</div><b>Validate or hold</b>Reject invalid citations or unsupported grounding, then route the ticket to a person instead of exposing the draft.</div>
         </div>
@@ -1021,7 +1112,7 @@ def architecture_view() -> None:
     input_col, output_col = st.columns(2)
     with input_col:
         st.markdown("#### What you can provide")
-        st.markdown("- One manually entered ticket\n- Guided 6-ticket demonstration\n- Full 36-ticket operations sample\n- Editable 45-ticket CSV example\n- Your own CSV batch of up to 50 tickets")
+        st.markdown("- One manually entered ticket\n- Guided 6-ticket demonstration\n- Full 36-ticket operations sample\n- Editable 50-ticket company CSV\n- Your own CSV batch of up to 50 tickets\n- Approved PDF, Markdown, text, or knowledge CSV files")
     with output_col:
         st.markdown("#### What you receive")
         st.markdown("- Category, urgency, status, and response target\n- Recommended team and safe route\n- Matched help article and confidence\n- Draft response or human handoff note\n- Searchable queue, CSV export, and JSON trace")
@@ -1030,11 +1121,23 @@ def architecture_view() -> None:
     st.success(f"OpenAI is the ticket-classification provider · `{OPENAI_MODEL}`")
     st.write("The dashboard always uses the OpenAI configuration from `.env`. If the model or API becomes unavailable, the trace records `MODEL_ERROR` and routes the ticket to a person instead of silently switching classifiers.")
 
+    st.markdown("### What Quality check actually measures")
+    st.write("Quality check uses the current operational Support knowledge base—the same articles used by manual and imported tickets. It does not report a hidden precomputed score.")
+    quality_steps = st.columns(4)
+    for column, (number, title, detail) in zip(quality_steps, [
+        ("1", "Snapshot stored data", "Record article count, sources, categories, embedding model, and a content fingerprint."),
+        ("2", "Create blind questions", "Sample up to eight stored articles and ask OpenAI for customer-style paraphrases without the answers."),
+        ("3", "Run real retrieval", "Send every question through MCP, Qdrant semantic search, BM25 fusion, and reranking."),
+        ("4", "Run live tickets", "Classify and route 15 labelled tickets, then measure safety, grounding, and complete MCP evidence."),
+    ]):
+        column.markdown(f'<div class="how-card"><div class="step">Check {number}</div><b>{title}</b>{detail}</div>', unsafe_allow_html=True)
+    st.info("The guided 6-ticket demo remains isolated for a repeatable judge walkthrough. Quality check, manual tickets, and imported ticket CSVs use your current Support knowledge. If that knowledge changes, the report is marked stale and must be rerun.")
+
     left, right = st.columns(2)
     with left:
         st.markdown("#### Real MCP boundary")
         st.code("Ticket workflow\n    │ MCP over stdio\n    ▼\nKnowledge search server\n    ├─ SQLite article store\n    └─ Qdrant dense vectors\n          │ hybrid rerank\n          ▼\nGrounded OpenAI draft + validator", language="text")
-        st.write(f"MCP is the tool connection. `stdio` means standard input/output. The separate server embeds the query with `{OPENAI_EMBEDDING_MODEL}`, searches Qdrant, adds BM25 keyword evidence, and returns reranked passages with score details.")
+        st.write(f"MCP is the tool connection. `stdio` means standard input/output. The separate server embeds the query with `{OPENAI_EMBEDDING_MODEL}`, searches the operational Qdrant collection, adds BM25 keyword evidence, and returns reranked passages with score details.")
     with right:
         st.markdown("#### Safety always wins")
         st.write("Deterministic controls override model suggestions. High urgency, security risk, anger, payment failure, legal/refund risk, weak evidence, model failure, or MCP failure can never produce an automatic answer draft.")

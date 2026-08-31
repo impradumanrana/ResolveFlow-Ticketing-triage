@@ -57,3 +57,21 @@ Supersede D-008 for normal app operation. The dashboard, CLI, and user-facing Qu
 ## D-013 — 2026-08-31 — Protected demo and evaluation knowledge
 
 Sample batches and Quality Check use a separate 15-article SQLite/Qdrant corpus. Manual and CSV tickets continue to use the operational user-managed corpus. This prevents ingestion experiments from changing the six-ticket judge narrative or invalidating fixed retrieval labels.
+
+Partially superseded by D-014: the protected corpus still backs sample batches, but Quality Check now measures the operational corpus.
+
+## D-014 — 2026-08-31 — Quality Check measures the knowledge actually in service
+
+Partially supersede D-013. Sample batches keep the protected 15-article corpus so the guided six-ticket demo stays reproducible, but Quality Check now runs against the operational Support knowledge base instead.
+
+A check against a fixed corpus could only ever confirm that the shipped starter articles still retrieve well. It could not answer the question an operator actually has after ingesting their own material: is *this* knowledge base fit to serve. Fixed retrieval labels do not exist for user-uploaded articles, so the check samples up to eight stored articles and has OpenAI write customer-style questions for them, then searches for each one through the real MCP boundary. The 15 labelled golden tickets are still classified, and they now route against the operational corpus too.
+
+The cost is deliberate and must be stated when presenting: Quality Check results are no longer reproducible across different knowledge bases, and route accuracy can move when the corpus changes. To keep the numbers honest, each run records a knowledge fingerprint and a UTC timestamp, the view warns when the corpus has changed since the run, results are discarded when their scope does not match, an empty knowledge base disables the run rather than reporting a vacuous pass, and a corpus that is more than 80% one category raises a tagging warning because skewed categories weaken reranking.
+
+## D-015 — 2026-08-31 — Style Streamlit controls by data-testid, never by data-baseweb
+
+The dashboard's control styling was originally written against `data-baseweb` attributes. The installed Streamlit build emits **zero** such attributes, so every rule for inputs, dropdowns, textareas, tabs, radios, and dropdown popovers matched nothing and failed silently. Controls fell back to a 1px white border on a near-white page and were effectively invisible.
+
+Style controls by their stable `data-testid` values and ARIA roles instead: `stTextInputRootElement`, `stTextAreaRootElement`, `stSelectbox div[role="group"]`, `stTab`, `stBaseButton-*`, and the detached `portal` element that hosts an open dropdown. The page background is a tinted gradient rather than white, so white control surfaces read as raised even before their borders are considered.
+
+A CSS selector that matches nothing produces no error, no warning, and no visual clue that it is broken — which is why this survived several rounds of visual work. A regression test therefore asserts that no `[data-baseweb=` selector reappears and that the explicit field border colour is present.
