@@ -29,6 +29,8 @@ class KBMatch(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
     excerpt: str
     category: str
+    source: str | None = None
+    retrieval: dict[str, Any] = Field(default_factory=dict)
 
 
 class TraceEvent(BaseModel):
@@ -54,4 +56,7 @@ class TriageResult(BaseModel):
     decision_summary: str
     rule_codes: list[str] = Field(default_factory=list)
     draft: str | None = None
+    citations: list[str] = Field(default_factory=list)
+    grounding_validated: bool = False
+    grounding_details: dict[str, Any] = Field(default_factory=dict)
     trace: list[TraceEvent] = Field(default_factory=list)

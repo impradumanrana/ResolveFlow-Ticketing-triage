@@ -92,7 +92,11 @@ def evaluate_guardrails(facts: dict[str, Any]) -> dict[str, Any]:
     ):
         rule_codes.append("MISSING_INFORMATION")
 
-    if any(token in text for token in ["do not remember", "forgot", "missing email", "need email", "no invoice", "no order", "i do not know my order", "i do not have the order"]):
+    if any(token in text for token in ["missing email", "need email", "no invoice", "no order", "i do not know my order", "i do not have the order"]):
+        rule_codes.append("MISSING_INFORMATION")
+    if any(token in text for token in ["do not remember", "forgot"]) and any(
+        context in text for context in ["order", "invoice", "purchase email", "billing email"]
+    ):
         rule_codes.append("MISSING_INFORMATION")
 
     if not text.strip():

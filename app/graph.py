@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -169,15 +170,96 @@ def decide(state: dict[str, Any]) -> dict[str, Any]:
 
 def draft_resolution(state: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
-    match = state["kb_matches"][0]
-    state["draft"] = (
-        f"Hi {state['ticket'].customer_id or 'there'},\n\n"
-        f"{match['excerpt']}\n\nReference: {match['article_id']} — {match['title']}"
+    try:
+        provider = state["provider"]
+        if hasattr(provider, "generate_grounded_answer"):
+            grounded = provider.generate_grounded_answer(
+                state["normalized_text"], state["kb_matches"], state["ticket"].customer_id
+            )
+        else:  # Compatibility for injected test providers; normal runtime always uses OpenAIProvider.
+            match = state["kb_matches"][0]
+            grounded = {
+                "answer": f"{match['excerpt']} [{match['article_id']}]",
+                "citations": [match["article_id"]],
+                "claims": [{"claim": match["excerpt"], "article_id": match["article_id"], "support_quote": match["excerpt"]}],
+                "sufficient_evidence": True,
+            }
+        state["grounded_answer"] = grounded
+        state["draft"] = f"Hi {state['ticket'].customer_id or 'there'},\n\n{str(grounded.get('answer', '')).strip()}"
+        state["citations"] = list(dict.fromkeys(grounded.get("citations") or []))
+        add_trace(state, "draft_resolution", started, "success", "OpenAI prepared an evidence-only answer candidate.", {
+            "model": getattr(provider, "model", "test-only deterministic provider"),
+            "candidate_citations": state["citations"],
+            "claim_count": len(grounded.get("claims") or []),
+        })
+    except Exception as exc:
+        state["grounding_error"] = type(exc).__name__
+        state["grounded_answer"] = {}
+        state["citations"] = []
+        add_trace(state, "draft_resolution", started, "error", "Grounded answer generation failed; human review required.", {
+            "error_type": type(exc).__name__, "fallback": "ESCALATE",
+        })
+    return state
+
+
+def validate_grounding(state: dict[str, Any]) -> dict[str, Any]:
+    """Fail closed unless citations and exact supporting passages can be verified."""
+    started = time.perf_counter()
+    payload = state.get("grounded_answer") or {}
+    evidence = {item["article_id"]: item for item in state.get("kb_matches") or []}
+    citations = payload.get("citations") if isinstance(payload.get("citations"), list) else []
+    claims = payload.get("claims") if isinstance(payload.get("claims"), list) else []
+    answer = str(payload.get("answer") or "").strip()
+    reasons: list[str] = []
+
+    if state.get("grounding_error"):
+        reasons.append("generation_error")
+    if payload.get("sufficient_evidence") is not True:
+        reasons.append("insufficient_evidence")
+    if not answer or not citations or not claims:
+        reasons.append("missing_answer_citations_or_claims")
+    invalid_citations = [citation for citation in citations if citation not in evidence]
+    if invalid_citations:
+        reasons.append("citation_not_retrieved")
+    answer_tags = set(re.findall(r"\[([^\[\]]+)\]", answer))
+    if not set(citations).issubset(answer_tags) or not answer_tags.issubset(evidence):
+        reasons.append("answer_citation_marker_invalid")
+    factual_paragraphs = [part.strip() for part in re.split(r"\n\s*\n", answer) if part.strip()]
+    if any(not set(re.findall(r"\[([^\[\]]+)\]", paragraph)).intersection(evidence) for paragraph in factual_paragraphs):
+        reasons.append("factual_paragraph_without_citation")
+
+    verified_claims = 0
+    for claim in claims:
+        if not isinstance(claim, dict):
+            reasons.append("claim_shape_invalid")
+            continue
+        article_id = str(claim.get("article_id") or "")
+        quote = str(claim.get("support_quote") or "").strip()
+        article = evidence.get(article_id)
+        if not article or not quote or quote.casefold() not in str(article["excerpt"]).casefold():
+            reasons.append("support_quote_not_in_evidence")
+        else:
+            verified_claims += 1
+
+    valid = not reasons and verified_claims == len(claims)
+    state["grounding_validated"] = valid
+    state["grounding_details"] = {
+        "valid": valid, "verified_claims": verified_claims,
+        "citations": citations, "failure_reasons": list(dict.fromkeys(reasons)),
+    }
+    if not valid:
+        state["decision"] = "ESCALATE"
+        state["rule_codes"] = list(dict.fromkeys([*state["rule_codes"], "GROUNDING_VALIDATION_FAILED"]))
+        state["draft"] = (
+            f"Human review required in {state['classification']['queue']}. "
+            "The answer candidate was withheld because its grounding could not be verified."
+        )
+        state["citations"] = []
+    add_trace(
+        state, "validate_grounding", started, "success" if valid else "warning",
+        "Citation and grounding checks passed." if valid else "Answer candidate withheld; grounding checks failed.",
+        state["grounding_details"],
     )
-    add_trace(state, "draft_resolution", started, "success", "Grounded response draft created.", {
-        "article_id": match["article_id"],
-        "citation": match["title"],
-    })
     return state
 
 
@@ -226,6 +308,9 @@ def observe(state: dict[str, Any]) -> dict[str, Any]:
         decision_summary=f"{route}: {evidence}.",
         rule_codes=state["rule_codes"],
         draft=state.get("draft"),
+        citations=state.get("citations", []),
+        grounding_validated=state.get("grounding_validated", False),
+        grounding_details=state.get("grounding_details", {}),
         trace=state["trace"],
     )
     return state
@@ -240,6 +325,7 @@ def build_workflow(provider: Any, mcp_client: Any):
         ("kb_search_mcp", kb_search_mcp),
         ("decide", decide),
         ("draft_resolution", draft_resolution),
+        ("validate_grounding", validate_grounding),
         ("draft_clarification", draft_clarification),
         ("create_escalation", create_escalation),
         ("observe", observe),
@@ -262,7 +348,8 @@ def build_workflow(provider: Any, mcp_client: Any):
             "create_escalation": "create_escalation",
         },
     )
-    workflow.add_edge("draft_resolution", "observe")
+    workflow.add_edge("draft_resolution", "validate_grounding")
+    workflow.add_edge("validate_grounding", "observe")
     workflow.add_edge("draft_clarification", "observe")
     workflow.add_edge("create_escalation", "observe")
     workflow.add_edge("observe", END)

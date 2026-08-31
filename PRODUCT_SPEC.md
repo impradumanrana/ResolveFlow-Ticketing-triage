@@ -48,25 +48,21 @@ In all unsafe cases, the system must default to CLARIFY or ESCALATE, never AUTO_
 
 ## Provider behavior
 
-The reliable judged path uses the deterministic provider so the demo and evaluation are repeatable without network credentials. An OpenAI adapter is available for optional hosted classification and its output is schema-validated. A hosted failure must be recorded and escalated, never silently presented as a successful fallback model result.
+The judged dashboard path always uses the OpenAI provider and model configured in `.env`; its output is schema-validated. The deterministic provider is limited to automated tests. A hosted failure is recorded and escalated, never silently presented as a successful fallback result.
 
 ```env
-LLM_PROVIDER=openai
 OPENAI_API_KEY=your_api_key_here
 OPENAI_MODEL=gpt-4.1-mini
-GEMINI_API_KEY=
-GROQ_API_KEY=
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2:3b
+KB_THRESHOLD=0.55
 ```
 
-Gemini, Groq, and Ollama fields are reserved configuration points, not implemented adapters. The app must never hardcode secrets in source files.
+The app must never hardcode secrets in source files.
 
 ## Non-goals
 
 - live Zendesk/Gmail/Freshdesk integration
 - production authentication, SSO, or multi-tenant deployment
-- vector database or embeddings service setup
+- hosted multi-instance vector-database infrastructure
 - multilingual support beyond the demo scope
 - autonomous sending to customers without human review
 - extended CRM workflows beyond demo ticket triage
@@ -74,15 +70,18 @@ Gemini, Groq, and Ollama fields are reserved configuration points, not implement
 ## Exact acceptance criteria
 
 1. The repository contains a runnable Python project that can triage one or more fixture tickets from the command line.
-2. The workflow is a LangGraph state machine with nodes and edges matching the required path: START → perceive → classify → risk_guard → kb_search_mcp → decide → draft_resolution / draft_clarification / create_escalation → observe → END.
+2. The workflow is a LangGraph state machine: START → perceive → classify → risk_guard → kb_search_mcp → decide → draft_resolution → validate_grounding / draft_clarification / create_escalation → observe → END.
 3. The KB lookup happens through a real MCP server/client boundary over stdio, not by directly importing a local function.
-4. The UI displays the ticket queue, detail pane, and node-by-node trace that shows Perceive → Reason → Act → Observe evidence without exposing hidden chain-of-thought.
-5. The system demonstrates at least one safe AUTO_RESOLVE, one CLARIFY, and one ESCALATE case using fixture tickets.
-6. The deterministic guardrail layer overrides the model on all blocked scenarios.
-7. The evaluation page or CLI output includes at least 15 labelled golden cases and a route/category comparison.
-8. The implementation passes pytest smoke tests and a CLI smoke run for the three core demo tickets.
-9. The repo contains `.env.example` and a safe `.gitignore` with no secrets committed.
-10. The project has a clean local run path using Python 3.11+, a dependency manifest, and a documented command to launch the app and tests.
+4. Semantic retrieval uses OpenAI dense embeddings in persistent Qdrant, fused with BM25 and transparently reranked.
+5. An automatic draft must use only retrieved evidence and pass citation/grounding validation; otherwise it is withheld for human review.
+6. The UI displays the ticket queue, detail pane, and node-by-node trace that shows Perceive → Reason → Act → Observe evidence without exposing hidden chain-of-thought.
+7. The system demonstrates at least one safe AUTO_RESOLVE, one CLARIFY, and one ESCALATE case using fixture tickets.
+8. The deterministic guardrail layer overrides the model on all blocked scenarios.
+9. The evaluation page or CLI output includes at least 15 labelled golden cases and a route/category comparison.
+10. The implementation passes pytest smoke tests and a CLI smoke run for the three core demo tickets.
+11. The repo contains `.env.example` and a safe `.gitignore` with no secrets committed.
+12. The project has a clean local run path using Python 3.11+, a dependency manifest, and a documented command to launch the app and tests.
+13. Sample batches and evaluation use a protected knowledge corpus that cannot be changed by operational knowledge uploads.
 
 ## Golden demo cases
 

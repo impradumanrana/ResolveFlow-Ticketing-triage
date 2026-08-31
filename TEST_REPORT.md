@@ -4,27 +4,35 @@
 
 Date: 31 August 2026  
 Environment: Python 3.14.5 (project supports Python 3.11+)  
-Reported evaluation mode: Deterministic Provider + real LangGraph + real MCP stdio
+Live smoke mode: OpenAI `gpt-5.6-luna` + OpenAI `text-embedding-3-small` + real LangGraph/MCP/Qdrant
+
+Automated evaluation mode: explicit deterministic test provider/embeddings + real LangGraph/MCP/Qdrant
 
 ## Results
 
 | Check | Command | Result |
 |---|---|---|
-| Full automated suite | `.venv/bin/pytest -q` | PASS — 22 passed in 16.06s |
+| Full automated suite | `.venv/bin/python -m pytest -q` | PASS — 41 passed in 54.17s |
 | Golden evaluation | `python -m app.eval` | PASS — 15 cases |
-| Category accuracy | golden evaluation | 100% |
-| Route accuracy | golden evaluation | 100% |
-| High-risk recall | golden evaluation | 100% |
-| Unsafe auto-resolves | golden evaluation | 0 |
+| Category accuracy | automated golden evaluation | 100% |
+| Route accuracy | automated golden evaluation | 100% |
+| High-risk recall | automated golden evaluation | 100% |
+| Unsafe auto-resolves | automated golden evaluation | 0 |
+| Knowledge top-1 retrieval | automated Qdrant hybrid evaluation | 100% — 9/9 paraphrases |
+| Grounded draft rate | automated golden evaluation | 100% |
+| MCP trace completeness | automated golden evaluation | 100% |
 | Route distribution | golden evaluation | 7 auto-resolve, 2 clarify, 6 escalate |
-| Average measured latency | golden evaluation | 649 ms/ticket on this machine |
-| CLI three-route smoke | `LLM_PROVIDER=demo python -m app.cli` | PASS — auto-resolve, escalate, clarify; MCP connected on all |
-| Streamlit rendered interaction | `pytest -q tests/test_dashboard.py` | PASS — 1 test in 6.34s |
+| Paraphrase retrieval comparison | 9 realistic queries | old scorer 5/9 top-1; hybrid scorer 9/9 top-1 |
+| E-commerce retrieval | isolated 25-article store | PASS — 10/10 top-1 and 10/10 above safety threshold |
+| Live RAG storage migration | existing 57-article corpus | PASS — 1536-dimensional OpenAI embeddings indexed in persistent Qdrant |
+| Live end-to-end grounded ticket | OpenAI → guardrails → MCP → Qdrant/BM25 → rerank → OpenAI → validator | PASS — `AUTO_RESOLVE`, real citation, 2/2 claims verified |
+| Protected live guided batch | configured OpenAI + isolated 15-article demo corpus | PASS — 6/6 expected routes; 2 drafts, 1 clarification, 3 escalations |
+| Streamlit rendered interaction | `.venv/bin/python -m pytest -q tests/test_dashboard.py` | PASS — 5 tests in 11.26s |
 | Streamlit startup | `streamlit run app/dashboard.py --server.headless true --server.address 127.0.0.1 --server.port 8504` | PASS — server listening |
 | Streamlit health | `curl .../\_stcore/health` | PASS — `ok` |
 | Make targets | `make -n setup run mcp test eval` | PASS — commands resolve |
 | Secret-pattern scan | source scan excluding local `.env` and virtualenv | PASS — no key-shaped secret found |
-| Git status | `git status --short --branch` | NOT AVAILABLE — directory is not a git repository |
+| Release packaging | staged-file and ignore audit | PASS — source, docs, tests, and samples included; `.env`, databases, vectors, caches, and virtualenv excluded |
 
 ## Automated coverage
 
@@ -33,6 +41,13 @@ Reported evaluation mode: Deterministic Provider + real LangGraph + real MCP std
 - every blocking safety rule
 - false-positive regression for “issue” vs “sue”
 - real MCP search against the full FAQ fixture
+- SQLite initialization and migration of built-in and user-added knowledge
+- persistent Qdrant collection creation, synchronization, clearing, replacement, and semantic query
+- persistent add, clear-user, clear-all, replace-all, and restore operations
+- nine realistic paraphrase retrieval cases with strong expected matches
+- Markdown/text chunk ingestion and preview validation; PDF extraction uses the same parser path
+- OpenAI dense + Qdrant/BM25 hybrid score components and reranked positions returned through MCP
+- knowledge-base manual/CSV UI and CSV validation
 - KB threshold at and immediately below the boundary
 - safe auto-resolve route
 - missing-information clarification route
@@ -41,6 +56,10 @@ Reported evaluation mode: Deterministic Provider + real LangGraph + real MCP std
 - MCP outage → `MCP_UNAVAILABLE` → escalation
 - prompt-injection resistance
 - KB citation in auto-resolution
+- immutable short evidence-key mapping back to exact stored article IDs
+- exact supporting-quote validation and adversarial unsupported-answer withholding
+- paragraph-level citation enforcement (a partly cited draft is withheld)
+- forgotten-password guardrail regression (not mistaken for missing billing information)
 - exact successful graph trace including Observe
 - 15-case golden accuracy and safety metrics
 - Streamlit empty state
@@ -49,7 +68,7 @@ Reported evaluation mode: Deterministic Provider + real LangGraph + real MCP std
 - six-case batch and KPI totals
 - selectable full 36-ticket sample batch
 - CSV batch parsing, required-column validation, and 50-ticket limit
-- 45-ticket example CSV, duplicate-ID rejection, and SLA target mapping
+- 45-ticket and 50-ticket example CSVs, duplicate-ID rejection, and SLA target mapping
 - sidebar Technical details contrast in expanded and collapsed states
 - compact ticket and MCP evidence cards (only the KPI row uses large metrics)
 - operational source and status fields
@@ -67,11 +86,10 @@ The in-app browser automation connection was unavailable during this session, so
 
 ## Provider note
 
-The published metrics are not from a hosted model. They are deliberately labelled as the deterministic provider with the real MCP and LangGraph runtime. A hosted OpenAI adapter exists, but no real-provider quality or availability claim is made in this report.
+The live RAG checks above were freshly measured using configured OpenAI `gpt-5.6-luna` plus `text-embedding-3-small`. Accuracy percentages are from the current repeatable 41-test suite, which uses explicit deterministic provider/embedding fixtures while retaining the real graph, MCP subprocess, SQLite, and Qdrant paths. Normal dashboard and CLI operation do not expose or silently select those fixtures. Run **Quality check** for a fresh full live OpenAI evaluation against the protected evaluation corpus.
 
 ## Known limitations
 
-- No persistence beyond Streamlit session state.
+- Ticket results and reviewer audit events remain session-scoped; knowledge articles persist in SQLite and dense vectors persist in Qdrant local mode.
 - No production auth or live helpdesk integration, by hackathon scope.
-- Gemini/Groq/Ollama environment fields are placeholders; only deterministic and OpenAI providers are implemented.
 - Each MCP lookup launches a short-lived stdio server process, prioritizing visible isolation and demo simplicity over throughput.

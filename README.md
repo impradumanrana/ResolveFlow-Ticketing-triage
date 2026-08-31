@@ -2,7 +2,7 @@
 
 Safe, explainable first-line customer-support triage built for the Customer Support Ticket Triage Agent hackathon.
 
-ResolveFlow classifies each ticket, evaluates deterministic safety controls, searches a 15-article knowledge base through a **real MCP stdio client/server boundary**, and chooses one route:
+ResolveFlow classifies each ticket, evaluates deterministic safety controls, searches a persistent support knowledge base through a **real MCP stdio client/server boundary**, and chooses one route:
 
 - `AUTO_RESOLVE` — strong, low-risk KB match with a cited response draft
 - `CLARIFY` — a required customer fact is missing
@@ -15,13 +15,15 @@ The app never sends customer messages autonomously.
 | Hackathon requirement | Implementation |
 |---|---|
 | Category + urgency | Typed billing/technical/account and low/medium/high/critical classification |
-| Agentic loop | Inspectable LangGraph with Perceive → Classify → Risk → MCP → Decide → Act → Observe |
+| Agentic loop | Inspectable LangGraph with Perceive → Classify → Risk → MCP/Qdrant → Rerank → Act → Validate → Observe |
 | Real MCP tool use | Separate FastMCP process over stdio; no in-process KB shortcut |
 | Safe routing | Deterministic guardrails override model output |
 | Batch output | Six-case guided demo, full 36-ticket batch, and validated CSV import for up to 50 tickets |
-| Explainability | Node trace, rule codes, timestamps, latency, MCP request/response, KB citation |
+| Explainability | Node trace, rule codes, timestamps, latency, MCP request/response, rerank scores, citations, grounding result |
 | Dashboard | Queue, filters, details, KPIs, human controls, downloads, evaluation, architecture |
 | Refusal case | Angry payment failure and account takeover are visibly escalated |
+
+Sample batches and Quality Check use a protected 15-article demo corpus. User-added or replaced knowledge is used for manual and CSV tickets but cannot change the judge demo outcomes.
 
 ## Architecture
 
@@ -30,9 +32,9 @@ Ticket
   → perceive
   → classify
   → risk_guard
-  → kb_search_mcp ──stdio──> FastMCP server ──> 15 FAQ articles
+  → kb_search_mcp ──stdio──> FastMCP server ──> SQLite + Qdrant dense/BM25 hybrid search
   → decide
-      ├─ AUTO_RESOLVE → draft_resolution
+      ├─ AUTO_RESOLVE → grounded OpenAI draft → citation/grounding validator
       ├─ CLARIFY     → draft_clarification
       └─ ESCALATE    → create_escalation
   → observe
@@ -51,7 +53,7 @@ python -m pip install -e .
 cp .env.example .env
 ```
 
-No hosted-model key is required for the reliable deterministic demo. For a hosted run, set a valid key in `.env`; secrets are ignored by git.
+A valid OpenAI API key is required for normal dashboard and CLI processing because both classification and dense embeddings use OpenAI. Automated tests use explicit network-free fixtures. Secrets are ignored by git.
 
 ## Run
 
@@ -93,17 +95,27 @@ make eval
 
 ## Process real tickets from CSV
 
-Open **Import a ticket batch from CSV** in the Ticket triage view. Download either the empty template or the editable 45-ticket realistic example, replace the examples with your own requests, and upload it. Required columns are `subject` and `body`; `ticket_id` and `customer_id` are optional. The app validates the file, rejects duplicate IDs, limits each run to 50 tickets, and routes every row through the real graph and MCP workflow.
+Open the top-level **Import ticket CSV** tab in the Ticket triage view. Download either the empty template or the editable 45-ticket realistic example, replace the examples with your own requests, and upload it. Required columns are `subject` and `body`; `ticket_id` and `customer_id` are optional. The app validates the file, rejects duplicate IDs, limits each run to 50 tickets, and routes every row through the real graph and MCP workflow.
 
-Choose **Reliable demo classifier** for repeatable offline results or **Configured hosted model** to use valid provider settings from `.env`. The selected mode is explicit; hosted failures are shown and safely escalated.
+The dashboard always uses the OpenAI provider and model configured in `.env`; there is no runtime mode selector. If OpenAI is unavailable, the trace records `MODEL_ERROR` and safely routes the ticket to a person rather than silently changing classifiers.
+
+## Manage the support knowledge base
+
+Open **Support knowledge** in the sidebar to view and export searchable help articles, add one approved article manually, import CSV, or ingest PDF, Markdown, and text files. A persistent action selector keeps the active workflow open after an import. Extracted sections are previewed before indexing. Imports can append to the current collection or replace it completely. A single confirmed action clears the complete knowledge base, and the 15 optional starter articles can be restored separately. A built-in test console runs the same real MCP search used by ticket triage.
+
+These controls manage the operational knowledge used by manual and imported tickets. The guided sample and Quality Check intentionally use a separate protected starter corpus so a knowledge upload cannot break the reproducible evaluation story.
+
+Knowledge article text, metadata, provenance, and timestamps are persisted in `app/data/knowledge.db` using SQLite. OpenAI `text-embedding-3-small` creates 1536-dimensional dense embeddings, and Qdrant local persistent mode indexes them in `app/data/qdrant`. Retrieval builds a candidate set from Qdrant cosine similarity and BM25 term relevance, then transparently reranks it with semantic, lexical, fuzzy, keyword, category, and reciprocal-rank signals. The MCP trace returns every score component and reranked position.
+
+For an eligible low-risk ticket, OpenAI receives only the top retrieved passages and must return article citations plus exact supporting quotes. A fail-closed validator checks that citation IDs came from the MCP response and every support quote exists in its cited article. Invalid or insufficient grounding changes the route to human review and withholds the candidate draft.
 
 ## Demo in 60 seconds
 
 1. Select **Guided demo · 6 tickets** and click **Load sample batch**.
 2. Open T-001 and show `AUTO_RESOLVE`, KB-001, its score, and the MCP request.
 3. Open T-002 and show `ESCALATE` despite relevant KB evidence because high urgency, anger, and payment-risk controls override it.
-4. Switch to **Quality check** and run the 15-case golden evaluation.
-5. Highlight 100% high-risk recall and zero unsafe auto-resolutions.
+4. Switch to **Quality check** and run the live OpenAI readiness evaluation.
+5. Show all seven gates: classification, routing, safety, unsafe automation, knowledge retrieval, grounding, and MCP evidence.
 
 Curated order:
 
@@ -120,8 +132,10 @@ Auto-resolution is blocked by high/critical urgency, anger/threats, security ris
 
 ## Current verified result
 
-- 22 tests pass, including hosted-output repair, 45-ticket CSV validation, duplicate-ID checks, SLA targets, rendered Streamlit interactions, compact detail cards, and explicit contrast safeguards.
-- Golden deterministic + real MCP run: 15/15 category and route matches.
+- 41 tests pass, including protected-demo isolation, persistent SQLite/Qdrant knowledge CRUD, document ingestion, hybrid paraphrase retrieval, real MCP search, paragraph-level citation and grounding validation, knowledge-CSV validation, hosted-output repair, 50-ticket CSV validation, SLA targets, rendered Streamlit interactions, and explicit contrast safeguards.
+- Live OpenAI `gpt-5.6-luna` + `text-embedding-3-small` RAG smoke: a safe password-reset ticket reached `AUTO_RESOLVE` through real MCP/Qdrant retrieval with an exact stored citation and 2/2 grounding claims verified.
+- Protected live six-ticket demo: 6/6 expected routes, 2 grounded answer drafts, 1 clarification, 3 safe escalations, and zero unsafe automatic drafts.
+- Golden deterministic + real MCP/Qdrant run: 15/15 category and route matches; 9/9 paraphrase retrieval cases top-1.
 - High-risk recall: 100%.
 - Unsafe auto-resolves: 0.
 - Live Streamlit startup: verified on `127.0.0.1:8504`.

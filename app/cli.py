@@ -2,19 +2,15 @@ from __future__ import annotations
 
 import json
 
-from app.config import HAS_OPENAI_KEY, LLM_PROVIDER
 from app.graph import build_workflow
 from app.mcp_client import MCPClient
 from app.models import Ticket
-from app.providers import DeterministicProvider, OpenAIProvider
+from app.providers import OpenAIProvider
 
 
 def triage_ticket(ticket: Ticket, provider=None, mcp_client=None):
     if provider is None:
-        if LLM_PROVIDER == "openai" and HAS_OPENAI_KEY:
-            provider = OpenAIProvider()
-        else:
-            provider = DeterministicProvider()
+        provider = OpenAIProvider()
     mcp_client = mcp_client or MCPClient()
     app = build_workflow(provider, mcp_client)
     state = {
