@@ -64,9 +64,15 @@ def load_tickets() -> list[dict[str, Any]]:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def openai_is_active() -> bool:
+    """Single source of truth for whether the configured provider is usable.
+
+    Test mode short-circuits before the key check and the network call so the
+    suite stays hermetic; without it the rendered-dashboard tests only pass on a
+    machine that happens to hold a real API key.
+    """
     if os.getenv("RESOLVEFLOW_TEST_MODE") == "1":
         return True
-    return OpenAIProvider().health_check()
+    return HAS_OPENAI_KEY and OpenAIProvider().health_check()
 
 
 def load_knowledge_articles() -> list[dict[str, Any]]:
@@ -1172,7 +1178,7 @@ def main() -> None:
         page = st.radio("Workspace", ["Ticket triage", "Support knowledge", "Quality check", "How it works"], label_visibility="collapsed")
         st.divider()
         st.markdown("**AI processing**")
-        if HAS_OPENAI_KEY and openai_is_active():
+        if openai_is_active():
             st.markdown('<span class="status-pill">OpenAI active</span>', unsafe_allow_html=True)
             st.caption(f"Model: {OPENAI_MODEL}")
         else:

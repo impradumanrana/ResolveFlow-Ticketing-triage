@@ -23,6 +23,6 @@ build/
 dist/
 *.egg-info/
 
-# Local screenshots / browser automation
+# Browser-automation scratch output. Screenshots you intend to ship
+# (docs/, README assets) are deliberately NOT ignored.
 .playwright-mcp/
-*.png

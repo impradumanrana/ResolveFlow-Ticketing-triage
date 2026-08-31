@@ -42,6 +42,8 @@ python scripts/evaluate_company_sample.py  # live 30-article company corpus run
 | Control contrast | computed-style check in a live browser | PASS — fields render `1.5px #6f7d99`, previously `1px #ffffff` |
 | Make targets | `make -n setup run mcp test eval` | PASS — commands resolve |
 | Secret-pattern scan | source scan excluding local `.env` and virtualenv | PASS — no key-shaped secret found |
+| Fresh clone from GitHub | clone → venv → `pip install -e .` → `pytest -q` | PASS — 43 passed with a placeholder key, and again with no `.env` at all |
+| Keyless startup | `streamlit run app/dashboard.py` with no `.env` | PASS — server healthy; sidebar reports the provider unavailable and tickets route to human review |
 | Editable install | `pip install -e .` | PASS — package discovery pinned to `app` |
 | Wheel build | `pip wheel --no-deps .` | PASS — builds; wheel contains only `app` |
 | Release packaging | staged-file and ignore audit | PASS — `.env`, databases, vectors, caches, screenshots, and virtualenv excluded |
