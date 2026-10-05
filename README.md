@@ -1,5 +1,13 @@
 # ResolveFlow AI
 
+> **Production client work is in progress.** The new Next.js and private Python
+> service foundation lives under `apps/web` and `app/api`; see
+> [Production Repository Foundation](docs/PRODUCTION_FOUNDATION.md). The
+> client-owned GCP environments are defined as code in `infra/terraform` and
+> have **not** been applied; see [Infrastructure](infra/docs/INFRASTRUCTURE.md).
+> The Streamlit instructions below remain the working hackathon MVP and internal
+> evaluation reference during migration.
+
 **Safe, explainable first-line customer-support triage.**
 Built for the Customer Support Ticket Triage Agent hackathon.
 

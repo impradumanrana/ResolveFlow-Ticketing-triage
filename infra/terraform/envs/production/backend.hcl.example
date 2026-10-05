@@ -1,0 +1,6 @@
+# Copy to backend.hcl and fill in the client-owned state bucket created by
+# infra/terraform/bootstrap. backend.hcl is git-ignored.
+#
+#   terraform init -backend-config=backend.hcl
+
+bucket = "REPLACE_WITH_CLIENT_TFSTATE_BUCKET"

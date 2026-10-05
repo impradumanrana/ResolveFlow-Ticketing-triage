@@ -1,5 +1,5 @@
-import json
 import csv
+import json
 from pathlib import Path
 
 import pytest
@@ -9,7 +9,6 @@ import app.graph as graph_module
 from app.eval import build_eval_report, knowledge_fingerprint, select_probe_articles
 from app.graph import build_workflow
 from app.guardrails import evaluate_guardrails
-from app.mcp_client import MCPClient
 from app.knowledge_store import (
     add_articles,
     clear_articles,
@@ -20,6 +19,7 @@ from app.knowledge_store import (
     restore_built_in_articles,
     search_articles,
 )
+from app.mcp_client import MCPClient
 from app.models import Ticket
 from app.providers import DeterministicProvider
 
@@ -32,13 +32,15 @@ class StaticMCP:
 
     def search(self, query, category, top_k=3):
         self.last_request = {"query": query, "category": category, "top_k": top_k}
-        return [{
-            "article_id": "KB-TEST",
-            "title": "Test article",
-            "score": self.score,
-            "excerpt": "Verified support steps.",
-            "category": category,
-        }]
+        return [
+            {
+                "article_id": "KB-TEST",
+                "title": "Test article",
+                "score": self.score,
+                "excerpt": "Verified support steps.",
+                "category": category,
+            }
+        ]
 
 
 class FailingMCP:
@@ -56,11 +58,13 @@ class UnsupportedAnswerProvider(DeterministicProvider):
         return {
             "answer": "We guarantee a refund tomorrow. [KB-NOT-RETRIEVED]",
             "citations": ["KB-NOT-RETRIEVED"],
-            "claims": [{
-                "claim": "We guarantee a refund tomorrow.",
-                "article_id": "KB-NOT-RETRIEVED",
-                "support_quote": "guarantee a refund tomorrow",
-            }],
+            "claims": [
+                {
+                    "claim": "We guarantee a refund tomorrow.",
+                    "article_id": "KB-NOT-RETRIEVED",
+                    "support_quote": "guarantee a refund tomorrow",
+                }
+            ],
             "sufficient_evidence": True,
         }
 
@@ -70,10 +74,13 @@ class PartiallyCitedProvider(DeterministicProvider):
         return {
             "answer": "Verified support steps. [KB-TEST]\n\nAn uncited extra promise.",
             "citations": ["KB-TEST"],
-            "claims": [{
-                "claim": "Verified support steps.", "article_id": "KB-TEST",
-                "support_quote": "Verified support steps.",
-            }],
+            "claims": [
+                {
+                    "claim": "Verified support steps.",
+                    "article_id": "KB-TEST",
+                    "support_quote": "Verified support steps.",
+                }
+            ],
             "sufficient_evidence": True,
         }
 
@@ -82,7 +89,9 @@ def invoke(ticket, provider=None, mcp=None):
     provider = provider or DeterministicProvider()
     mcp = mcp or StaticMCP()
     app = build_workflow(provider, mcp)
-    return app.invoke({"ticket": ticket, "provider": provider, "mcp_client": mcp, "trace": []})["result"]
+    return app.invoke({"ticket": ticket, "provider": provider, "mcp_client": mcp, "trace": []})[
+        "result"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -105,12 +114,16 @@ def test_every_blocking_guardrail(content, urgency, rule):
 
 
 def test_normal_word_issue_does_not_match_sue():
-    result = evaluate_guardrails({"urgency": "low", "content": "I have a dashboard permissions issue."})
+    result = evaluate_guardrails(
+        {"urgency": "low", "content": "I have a dashboard permissions issue."}
+    )
     assert "REFUND_OR_LEGAL" not in result["rule_codes"]
 
 
 def test_forgotten_password_is_not_mistaken_for_missing_billing_information():
-    result = evaluate_guardrails({"urgency": "low", "content": "I forgot my password and need reset steps."})
+    result = evaluate_guardrails(
+        {"urgency": "low", "content": "I forgot my password and need reset steps."}
+    )
     assert "MISSING_INFORMATION" not in result["rule_codes"]
 
 
@@ -123,10 +136,18 @@ def test_real_mcp_search_uses_full_fixture():
 def test_protected_demo_corpus_is_independent_of_user_knowledge(tmp_path):
     demo_path = prepare_demo_knowledge()
     user_path = tmp_path / "user-knowledge.db"
-    replace_articles([{
-        "article_id": "USER-ONLY", "title": "Unrelated user policy", "category": "billing",
-        "excerpt": "A user-specific policy that must not alter the guided demo.", "keywords": ["unrelated"],
-    }], db_path=user_path)
+    replace_articles(
+        [
+            {
+                "article_id": "USER-ONLY",
+                "title": "Unrelated user policy",
+                "category": "billing",
+                "excerpt": "A user-specific policy that must not alter the guided demo.",
+                "keywords": ["unrelated"],
+            }
+        ],
+        db_path=user_path,
+    )
     results = MCPClient(kb_db_path=demo_path).search("forgot password reset link", "technical", 3)
     assert results[0]["article_id"] == "KB-001"
     assert all(item["article_id"] != "USER-ONLY" for item in results)
@@ -134,19 +155,53 @@ def test_protected_demo_corpus_is_independent_of_user_knowledge(tmp_path):
 
 def test_operational_quality_uses_current_article_sample(monkeypatch):
     articles = [
-        {"article_id": "USER-1", "title": "User refund", "category": "billing", "excerpt": "Refund help", "_source": "Ingested document", "updated_at": "1"},
-        {"article_id": "USER-2", "title": "User login", "category": "account", "excerpt": "Login help", "_source": "Imported replacement", "updated_at": "2"},
-        {"article_id": "KB-1", "title": "Built-in sync", "category": "technical", "excerpt": "Sync help", "_source": "Built-in", "updated_at": "3"},
+        {
+            "article_id": "USER-1",
+            "title": "User refund",
+            "category": "billing",
+            "excerpt": "Refund help",
+            "_source": "Ingested document",
+            "updated_at": "1",
+        },
+        {
+            "article_id": "USER-2",
+            "title": "User login",
+            "category": "account",
+            "excerpt": "Login help",
+            "_source": "Imported replacement",
+            "updated_at": "2",
+        },
+        {
+            "article_id": "KB-1",
+            "title": "Built-in sync",
+            "category": "technical",
+            "excerpt": "Sync help",
+            "_source": "Built-in",
+            "updated_at": "3",
+        },
     ]
 
     class ProbeProvider(DeterministicProvider):
         def generate_retrieval_probes(self, sampled):
-            return [{"article_id": row["article_id"], "query": f"question for {row['article_id']}", "category": row["category"]} for row in sampled]
+            return [
+                {
+                    "article_id": row["article_id"],
+                    "query": f"question for {row['article_id']}",
+                    "category": row["category"],
+                }
+                for row in sampled
+            ]
 
     monkeypatch.setattr(eval_module, "list_articles", lambda: articles)
     monkeypatch.setattr(eval_module, "knowledge_stats", lambda: {"articles": 3})
-    monkeypatch.setattr(eval_module, "build_eval_report", lambda **kwargs: {"retrieval_rows": kwargs["retrieval_cases"]})
-    report = eval_module.build_operational_eval_report(provider=ProbeProvider(), mcp_client=object())
+    monkeypatch.setattr(
+        eval_module,
+        "build_eval_report",
+        lambda **kwargs: {"retrieval_rows": kwargs["retrieval_cases"]},
+    )
+    report = eval_module.build_operational_eval_report(
+        provider=ProbeProvider(), mcp_client=object()
+    )
     assert report["evaluation_scope"] == "Current operational Support knowledge base"
     assert {row["expected"] for row in report["retrieval_rows"]} == {"USER-1", "USER-2", "KB-1"}
     assert report["knowledge_fingerprint"] == knowledge_fingerprint(articles)
@@ -156,8 +211,20 @@ def test_operational_quality_uses_current_article_sample(monkeypatch):
 def test_mcp_loader_ingests_built_in_and_custom_articles(tmp_path, monkeypatch):
     fixtures = tmp_path / "fixtures"
     fixtures.mkdir()
-    base = {"article_id": "KB-BASE", "title": "Base", "category": "technical", "excerpt": "Base answer", "keywords": []}
-    custom = {"article_id": "KB-CUSTOM", "title": "Custom", "category": "account", "excerpt": "Custom answer", "keywords": []}
+    base = {
+        "article_id": "KB-BASE",
+        "title": "Base",
+        "category": "technical",
+        "excerpt": "Base answer",
+        "keywords": [],
+    }
+    custom = {
+        "article_id": "KB-CUSTOM",
+        "title": "Custom",
+        "category": "account",
+        "excerpt": "Custom answer",
+        "keywords": [],
+    }
     fixtures.joinpath("faqs.json").write_text(json.dumps([base]))
     fixtures.joinpath("custom_faqs.json").write_text(json.dumps([custom]))
     db_path = tmp_path / "knowledge.db"
@@ -192,11 +259,17 @@ def test_persistent_knowledge_can_add_clear_replace_and_restore(tmp_path):
     initialize_database(db_path)
     built_in_count = len(list_articles(db_path))
     custom = {
-        "article_id": "KB-LOCAL-1", "title": "Workspace pairing", "category": "technical",
-        "excerpt": "Pair the device again from workspace settings.", "keywords": ["pair", "device"],
+        "article_id": "KB-LOCAL-1",
+        "title": "Workspace pairing",
+        "category": "technical",
+        "excerpt": "Pair the device again from workspace settings.",
+        "keywords": ["pair", "device"],
     }
     assert add_articles([custom], db_path=db_path) == 1
-    assert search_articles("pair my device", "technical", db_path=db_path)[0]["article_id"] == "KB-LOCAL-1"
+    assert (
+        search_articles("pair my device", "technical", db_path=db_path)[0]["article_id"]
+        == "KB-LOCAL-1"
+    )
     assert clear_articles("user", db_path) == 1
     assert len(list_articles(db_path)) == built_in_count
     assert replace_articles([custom], source="Imported replacement", db_path=db_path) == 1
@@ -207,9 +280,13 @@ def test_persistent_knowledge_can_add_clear_replace_and_restore(tmp_path):
 
 
 def test_company_sample_knowledge_retrieves_realistic_queries(tmp_path):
-    source = Path(__file__).resolve().parents[1] / "sample_data" / "northstar_ecommerce_knowledge.csv"
+    source = (
+        Path(__file__).resolve().parents[1] / "sample_data" / "northstar_ecommerce_knowledge.csv"
+    )
     with source.open() as handle:
-        articles = [{**row, "keywords": row["keywords"].split("|")} for row in csv.DictReader(handle)]
+        articles = [
+            {**row, "keywords": row["keywords"].split("|")} for row in csv.DictReader(handle)
+        ]
     db_path = tmp_path / "ecommerce.db"
     replace_articles(articles, source="E-commerce starter", db_path=db_path)
     cases = [
@@ -231,14 +308,20 @@ def test_company_sample_knowledge_retrieves_realistic_queries(tmp_path):
 
 
 def test_threshold_boundary(monkeypatch):
-    ticket = Ticket(ticket_id="T-boundary", subject="Password reset", body="Please show me password reset steps.")
+    ticket = Ticket(
+        ticket_id="T-boundary",
+        subject="Password reset",
+        body="Please show me password reset steps.",
+    )
     monkeypatch.setattr(graph_module, "KB_THRESHOLD", 0.55)
     assert invoke(ticket, mcp=StaticMCP(0.55)).route == "AUTO_RESOLVE"
     assert invoke(ticket, mcp=StaticMCP(0.549)).route == "ESCALATE"
 
 
 def test_provider_failure_escalates_with_visible_rule():
-    ticket = Ticket(ticket_id="T-model", subject="Password reset", body="Please show me password reset steps.")
+    ticket = Ticket(
+        ticket_id="T-model", subject="Password reset", body="Please show me password reset steps."
+    )
     result = invoke(ticket, provider=FailingProvider())
     assert result.route == "ESCALATE"
     assert "MODEL_ERROR" in result.rule_codes
@@ -246,7 +329,9 @@ def test_provider_failure_escalates_with_visible_rule():
 
 
 def test_mcp_outage_escalates_with_visible_rule():
-    ticket = Ticket(ticket_id="T-mcp", subject="Password reset", body="Please show me password reset steps.")
+    ticket = Ticket(
+        ticket_id="T-mcp", subject="Password reset", body="Please show me password reset steps."
+    )
     result = invoke(ticket, mcp=FailingMCP())
     assert result.route == "ESCALATE"
     assert "MCP_UNAVAILABLE" in result.rule_codes
@@ -265,21 +350,36 @@ def test_prompt_injection_cannot_override_policy():
 
 
 def test_safe_resolution_contains_citation_and_complete_trace():
-    ticket = Ticket(ticket_id="T-safe", customer_id="C-safe", subject="Password reset", body="Please show me password reset steps.")
+    ticket = Ticket(
+        ticket_id="T-safe",
+        customer_id="C-safe",
+        subject="Password reset",
+        body="Please show me password reset steps.",
+    )
     result = invoke(ticket)
     assert result.route == "AUTO_RESOLVE"
     assert "KB-TEST" in result.draft
     nodes = [event.node for event in result.trace]
     assert nodes == [
-        "perceive", "classify", "risk_guard", "kb_search_mcp", "decide",
-        "draft_resolution", "validate_grounding", "observe",
+        "perceive",
+        "classify",
+        "risk_guard",
+        "kb_search_mcp",
+        "decide",
+        "draft_resolution",
+        "validate_grounding",
+        "observe",
     ]
     assert result.grounding_validated is True
     assert result.citations == ["KB-TEST"]
 
 
 def test_unsupported_answer_is_withheld_and_escalated():
-    ticket = Ticket(ticket_id="T-grounding", subject="Password reset", body="Please show me password reset steps.")
+    ticket = Ticket(
+        ticket_id="T-grounding",
+        subject="Password reset",
+        body="Please show me password reset steps.",
+    )
     result = invoke(ticket, provider=UnsupportedAnswerProvider())
     assert result.route == "ESCALATE"
     assert "GROUNDING_VALIDATION_FAILED" in result.rule_codes
@@ -289,7 +389,11 @@ def test_unsupported_answer_is_withheld_and_escalated():
 
 
 def test_every_factual_paragraph_requires_a_retrieved_citation():
-    ticket = Ticket(ticket_id="T-partial-grounding", subject="Password reset", body="Please show me password reset steps.")
+    ticket = Ticket(
+        ticket_id="T-partial-grounding",
+        subject="Password reset",
+        body="Please show me password reset steps.",
+    )
     result = invoke(ticket, provider=PartiallyCitedProvider())
     assert result.route == "ESCALATE"
     assert "factual_paragraph_without_citation" in result.grounding_details["failure_reasons"]

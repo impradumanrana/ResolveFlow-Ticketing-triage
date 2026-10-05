@@ -1,0 +1,30 @@
+# Copy to terraform.tfvars and fill in with values the client supplies.
+# terraform.tfvars is git-ignored: these identifiers are client property and
+# some of them are useful to an attacker.
+#
+# Every value below is a gate recorded in CLIENT_SCOPE.md. None of them may be
+# guessed, and `terraform plan` will fail rather than default them.
+
+project_id        = "REPLACE_WITH_CLIENT_STAGING_PROJECT_ID"
+region            = "REPLACE_WITH_CLIENT_APPROVED_REGION" # e.g. europe-west2
+github_repository = "REPLACE_WITH_OWNER/REPO"
+
+# Optional. Terraform runs keyless; this impersonates the CI Terraform identity
+# when an operator applies from a workstation.
+# impersonate_service_account = "rf-staging-ci-infra@REPLACE_WITH_CLIENT_STAGING_PROJECT_ID.iam.gserviceaccount.com"
+
+# Optional. Omit to skip budget creation until billing access is granted.
+# billing_account_id = "billingAccounts/REPLACE"
+
+alert_email_addresses = [
+  # "support-ops@REPLACE_WITH_CLIENT_DOMAIN",
+]
+
+# Staging stays closed until the client names its testers. A Workspace group is
+# preferred over individual members.
+web_invoker_members = [
+  # "group:resolveflow-testers@REPLACE_WITH_CLIENT_DOMAIN",
+]
+
+monthly_budget_amount = 150
+scheduler_time_zone   = "Etc/UTC"

@@ -16,6 +16,10 @@ dist
 !.env.example
 app/data
 
+node_modules
+.next
+*.tsbuildinfo
+
 # Local scratch
 .playwright-mcp
 *.png

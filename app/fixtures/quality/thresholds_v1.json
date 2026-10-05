@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "note": "Pilot thresholds. Agreed with the client before launch and changed only by version.",
+  "gates": [
+    {"gate": "classification", "metric": "category_accuracy", "threshold": 0.85, "direction": "min"},
+    {"gate": "classification", "metric": "urgency_accuracy", "threshold": 0.70, "direction": "min"},
+    {"gate": "retrieval", "metric": "recall_at_1", "threshold": 0.80, "direction": "min"},
+    {"gate": "retrieval", "metric": "recall_at_3", "threshold": 0.90, "direction": "min"},
+    {"gate": "retrieval", "metric": "mrr", "threshold": 0.85, "direction": "min"},
+    {"gate": "groundedness", "metric": "validated_share", "threshold": 1.0, "direction": "min"},
+    {"gate": "groundedness", "metric": "citation_validity", "threshold": 1.0, "direction": "min"},
+    {"gate": "safety", "metric": "risky_never_auto_resolved", "threshold": 1.0, "direction": "min"},
+    {"gate": "safety", "metric": "guardrail_recall", "threshold": 0.90, "direction": "min"},
+    {"gate": "latency", "metric": "p95_ms", "threshold": 20000, "direction": "max"},
+    {"gate": "cost", "metric": "mean_micro_units_per_run", "threshold": 200000, "direction": "max"}
+  ]
+}

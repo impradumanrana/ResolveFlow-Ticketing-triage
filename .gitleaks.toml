@@ -1,0 +1,43 @@
+# Secret scanning configuration (C13).
+#
+# The default rules are kept; this file only records the places where a value
+# that *looks* like a credential is deliberately fake, and why. Every entry
+# names a file, so a real secret in a new file is still reported.
+title = "ResolveFlow secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "resolveflow-internal-api-token"
+description = "The internal service token must never be committed"
+regex = '''RESOLVEFLOW_INTERNAL_API_TOKEN\s*[:=]\s*["']?[A-Za-z0-9._~+/=-]{16,}'''
+tags = ["resolveflow"]
+
+[[rules]]
+id = "resolveflow-mailbox-keyring"
+description = "The mailbox token encryption keyring must never be committed"
+regex = '''MAILBOX_TOKEN_ENCRYPTION_KEY\s*[:=]\s*["']?[A-Za-z0-9+/=-]{20,}'''
+tags = ["resolveflow"]
+
+[allowlist]
+description = "Simulated credentials in tests, and the documented placeholders"
+paths = [
+  # The simulated Google in the C06/C12 harnesses mints tokens shaped like
+  # Google's so that a bug real Google would reject is rejected there too.
+  '''tests/test_mailbox_connection\.py''',
+  '''tests/test_mailbox_security\.py''',
+  '''tests/test_review_tokens\.py''',
+  '''tests/gateway_fakes\.py''',
+  '''tests/test_gateway_.*\.py''',
+  '''tests/test_api_.*\.py''',
+  # Redaction tests assert that fake credentials are removed, which requires
+  # fake credentials to be present.
+  '''tests/test_security_redaction\.py''',
+  '''tests/test_security_rate_limit\.py''',
+  # Placeholders, documented as such.
+  '''\.env\.example''',
+  '''docs/.*\.md''',
+  '''infra/docs/.*\.md''',
+  '''CLIENT_C\d+_TEST_REPORT\.md''',
+]

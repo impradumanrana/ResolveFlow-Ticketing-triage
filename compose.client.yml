@@ -1,0 +1,85 @@
+services:
+  # Local development database. Deployed environments use Cloud SQL with
+  # private IP and IAM authentication (no password); this container exists only
+  # so migrations and sign-in can be exercised locally.
+  db:
+    # pgvector, not plain postgres: embeddings and the vector index are part of
+    # the schema from C05, and the C04 migration creates the extension.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: resolveflow
+      POSTGRES_PASSWORD: resolveflow
+      POSTGRES_DB: resolveflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - resolveflow-client-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resolveflow -d resolveflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: resolveflow-ai-api:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEPLOYMENT_PROFILE: local
+      RESOLVEFLOW_INTERNAL_API_TOKEN: ${RESOLVEFLOW_INTERNAL_API_TOKEN:-local-dev-only-change-me}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
+      KB_THRESHOLD: ${KB_THRESHOLD:-0.55}
+      # Mailbox connection (C06). Unset values make the endpoints fail closed.
+      DATABASE_URL: postgresql+psycopg://resolveflow:resolveflow@db:5432/resolveflow
+      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-}
+      GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:3000/api/mailboxes/oauth/callback}
+      MAILBOX_TOKEN_ENCRYPTION_KEY: ${MAILBOX_TOKEN_ENCRYPTION_KEY:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - resolveflow-client-data:/opt/resolveflow/app/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: resolveflow-web:local
+    environment:
+      AI_API_BASE_URL: http://ai-api:8080
+      RESOLVEFLOW_INTERNAL_API_TOKEN: ${RESOLVEFLOW_INTERNAL_API_TOKEN:-local-dev-only-change-me}
+      DATABASE_URL: postgresql://resolveflow:resolveflow@db:5432/resolveflow
+      # Local values only. Deployed environments read these from Secret Manager.
+      AUTH_URL: http://localhost:3000
+      AUTH_SECRET: ${AUTH_SECRET:-local-dev-only-change-me-32-bytes-min}
+      AUDIT_IP_SALT: ${AUDIT_IP_SALT:-local-dev-only-salt}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      ai-api:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+volumes:
+  resolveflow-client-data:
+  resolveflow-client-db:

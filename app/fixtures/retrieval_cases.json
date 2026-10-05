@@ -1,0 +1,11 @@
+[
+  {"query": "I cannot get into my profile because I forgot the passcode", "expected_ref": "KB-001", "category": "technical", "note": "paraphrase: passcode for password"},
+  {"query": "Where can I find a receipt for my purchase?", "expected_ref": "KB-012", "category": "billing", "note": "paraphrase: receipt for invoice"},
+  {"query": "The mobile program freezes and closes immediately", "expected_ref": "KB-006", "category": "technical", "note": "paraphrase: program for app, freezes for crash"},
+  {"query": "How do I stop my membership renewing?", "expected_ref": "KB-007", "category": "billing", "note": "paraphrase: membership for subscription"},
+  {"query": "My device will not pair with the workspace", "expected_ref": "KB-014", "category": "technical", "note": "paraphrase: pair for sync"},
+  {"query": "How can I change the card on file before renewal?", "expected_ref": "KB-015", "category": "billing", "note": "phrase mapping: card on file"},
+  {"query": "How do I set up the one time password app?", "expected_ref": "KB-002", "category": "technical", "note": "phrase mapping: one time password for otp"},
+  {"query": "Someone else entered my profile without permission", "expected_ref": "KB-009", "category": "account", "note": "phrase mapping: without permission"},
+  {"query": "The export is absent from my home screen", "expected_ref": "KB-011", "category": "technical", "note": "phrase mapping: home screen for dashboard"}
+]

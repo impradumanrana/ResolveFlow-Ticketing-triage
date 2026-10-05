@@ -5,6 +5,11 @@ description = "Support Ticket Triage Agent with MCP"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "fastapi>=0.141.1,<0.142.0",
+  "uvicorn>=0.52.0,<0.53.0",
+  "alembic>=1.19.2,<1.20.0",
+  "SQLAlchemy>=2.0.52,<2.1.0",
+  "psycopg[binary]>=3.3.5,<4.0.0",
   "langgraph>=0.2.0",
   "fastmcp>=2.0.0",
   "mcp>=1.0.0",
@@ -25,3 +30,21 @@ dependencies = [
 # `pip install -e .` on a fresh clone.
 [tool.setuptools]
 packages = ["app"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI intentionally calls Depends in defaults for dependency injection.
+"app/api/main.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_untyped_defs = true
+follow_imports = "skip"
+ignore_missing_imports = true

@@ -1,0 +1,130 @@
+name: ResolveFlow CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Verify generated API contract
+        run: |
+          python -m scripts.export_openapi
+          git diff --exit-code -- contracts/openapi/v1.json
+      # Through the Makefile, not a second copy of the path list. The previous
+      # inline lists drifted four phases behind it, which meant the rules,
+      # gateway, triage and review code was unchecked in CI (C13).
+      - name: Python lint and type check
+        run: make python-check PYTHON=python
+      - name: Verify migration chain
+        run: python -m alembic upgrade head --sql
+      - name: Python tests
+        run: python -m pytest -q
+      - name: Install web dependencies
+        run: npm ci
+      - name: Web contract tests
+        run: npm test
+      - name: Web lint
+        run: npm run lint
+      - name: Web type check
+        run: npm run typecheck
+      - name: Web production build
+        run: npm run build
+
+  dependencies:
+    # Known-vulnerability and secret scanning. Separate from `quality` so a
+    # newly published advisory does not make it impossible to tell whether the
+    # code itself is broken.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks needs history to scan commits, not just the tree.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Python dependency audit
+        run: python -m pip_audit --strict --requirement requirements.txt --requirement requirements-dev.txt
+      - name: Install web dependencies
+        run: npm ci
+      - name: Web dependency audit (deployed packages)
+        # Blocking, and scoped to what is actually shipped: `output: standalone`
+        # bundles production dependencies only, so a high or critical here is in
+        # the running service.
+        run: npm audit --omit=dev --audit-level=high
+      - name: Web dependency audit (build-time packages)
+        # Reported, not blocking. The ESLint chain carries denial-of-service
+        # advisories whose only published fix downgrades eslint-config-next
+        # below the framework version, and none of it reaches the image. This
+        # step exists so the list stays visible and is reviewed each phase
+        # rather than being silently accepted (see docs/SECURITY_REVIEW.md).
+        run: npm audit --audit-level=high || true
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build AI API image
+        run: docker build -f Dockerfile.api -t resolveflow-ai-api:c01 .
+      - name: Build Next.js image
+        run: docker build -f apps/web/Dockerfile -t resolveflow-web:c01 .
+
+  infrastructure:
+    # Definition-only verification. This job has no cloud credentials, no
+    # Workload Identity Federation permission, and never runs terraform apply.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+      - name: Terraform format
+        run: terraform fmt -check -recursive infra/terraform
+      - name: Terraform validate
+        run: |
+          for env in staging production; do
+            terraform -chdir=infra/terraform/envs/$env init -backend=false -input=false
+            terraform -chdir=infra/terraform/envs/$env validate
+          done
+      - name: Offline infrastructure checks
+        run: python -m scripts.validate_infra

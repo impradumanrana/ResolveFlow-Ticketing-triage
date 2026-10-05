@@ -1,0 +1,19 @@
+{
+  "name": "resolveflow-client",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20.19.0 <21"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@resolveflow/web",
+    "build": "npm run build --workspace=@resolveflow/web",
+    "start": "npm run start --workspace=@resolveflow/web",
+    "lint": "npm run lint --workspace=@resolveflow/web",
+    "typecheck": "npm run typecheck --workspace=@resolveflow/web",
+    "test": "npm run test --workspace=@resolveflow/web"
+  }
+}

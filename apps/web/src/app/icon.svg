@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="ResolveFlow">
+  <rect width="32" height="32" rx="7" fill="#1d4ed8"/>
+  <path d="M9 21.5V10.5h6.2c2.6 0 4.3 1.5 4.3 3.8 0 1.7-.9 3-2.5 3.5l3 3.7h-3.3l-2.6-3.3h-2.3v3.3H9Zm2.8-5.6h3c1.2 0 1.9-.6 1.9-1.6s-.7-1.5-1.9-1.5h-3v3.1Z" fill="#ffffff"/>
+  <circle cx="23" cy="21" r="2.4" fill="#86efac"/>
+</svg>

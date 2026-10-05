@@ -18,6 +18,13 @@ app/data/
 .idea/
 .vscode/
 
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+
 # Build artifacts
 build/
 dist/
@@ -26,3 +33,22 @@ dist/
 # Browser-automation scratch output. Screenshots you intend to ship
 # (docs/, README assets) are deliberately NOT ignored.
 .playwright-mcp/
+
+# Terraform (C02). Only *.example files are committed.
+# .terraform.lock.hcl is deliberately NOT ignored: it pins provider versions
+# and checksums, which is a supply-chain control worth reviewing in a diff.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+backend.hcl
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

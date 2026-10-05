@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars. Applied once, by a named client administrator.
+
+project_id        = "REPLACE_WITH_CLIENT_ADMIN_OR_STAGING_PROJECT_ID"
+region            = "REPLACE_WITH_CLIENT_APPROVED_REGION"
+state_bucket_name = "REPLACE_WITH_CLIENT_PREFIX-resolveflow-tfstate"
+
+state_writer_members = [
+  # "serviceAccount:rf-staging-ci-infra@REPLACE.iam.gserviceaccount.com",
+  # "serviceAccount:rf-production-ci-infra@REPLACE.iam.gserviceaccount.com",
+]

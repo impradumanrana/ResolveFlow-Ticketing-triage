@@ -1,0 +1,38 @@
+{
+  // Compiles only the framework-free modules so `node --test` can exercise the
+  // authorization core on Node 20, which cannot strip types at runtime.
+  // Anything importable here must not import Next, React, pg, or next-auth.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": false,
+    "incremental": false,
+    "outDir": ".test-build",
+    "rootDir": "src",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "plugins": []
+  },
+  "include": [
+    "src/lib/authz/**/*.ts",
+    "src/lib/identity/types.ts",
+    "src/lib/identity/repository.ts",
+    "src/lib/identity/in-memory-repository.ts",
+    "src/lib/identity/resolve.ts",
+    "src/lib/identity/signin-policy.ts",
+    "src/lib/audit/events.ts",
+    "src/lib/auth/cookies.ts",
+    "src/lib/mailbox/redirects.ts",
+    "src/lib/workspace/state.ts",
+    "src/lib/workspace/filters.ts",
+    "src/lib/ai-settings/view.ts",
+    "src/lib/quality/view.ts",
+    "src/lib/review/view.ts",
+    "src/lib/security/headers.ts",
+    "src/lib/security/rate-limit.ts"
+  ],
+  "exclude": []
+}

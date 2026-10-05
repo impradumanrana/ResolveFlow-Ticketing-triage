@@ -1,10 +1,12 @@
-# Pinned lockfile. Generated from a clean-room install that passed the full
-# 43-test suite, so a rebuild resolves to exactly the verified dependency set.
+# Pinned lockfile for the verified Python application and C01 foundation.
 # Regenerate with: pip freeze | grep -v '^resolveflow'
+fastapi==0.141.1
+annotated-doc==0.0.5
+alembic==1.19.2
 Authlib==1.8.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
-PyJWT==2.13.0
+PyJWT==2.15.0
 PyYAML==6.0.3
 Pygments==2.21.0
 aiofile==3.12.3
@@ -44,6 +46,7 @@ hyperframe==6.1.0
 idna==3.19
 iniconfig==2.3.0
 itsdangerous==2.2.0
+Mako==1.4.1
 jaraco.classes==3.4.0
 jaraco.context==6.1.2
 jaraco.functools==4.6.0
@@ -71,6 +74,8 @@ narwhals==2.25.0
 numpy==2.5.2
 openai==3.6.0
 openapi-pydantic==0.5.1
+psycopg==3.3.5
+psycopg-binary==3.3.5
 opentelemetry-api==1.44.0
 orjson==3.12.0
 ormsgpack==1.12.2
@@ -89,9 +94,10 @@ pydantic-settings==2.15.0
 pydantic==2.13.5
 pydantic_core==2.46.5
 pydeck==0.9.3
-pypdf==6.16.2
+pypdf==6.19.0
 pyperclip==1.11.0
 pytest==9.1.1
+SQLAlchemy==2.0.52
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
 python-multipart==0.0.32
@@ -113,7 +119,7 @@ truststore==0.10.4
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uncalled-for==0.4.0
-urllib3==2.7.0
+urllib3==2.8.0
 uuid_utils==0.17.0
 uvicorn==0.52.4
 watchdog==6.0.0

@@ -1,0 +1,32 @@
+# Copy to terraform.tfvars and fill in with values the client supplies.
+# terraform.tfvars is git-ignored.
+#
+# Production apply additionally requires the signed go/no-go recorded at C15.
+
+project_id        = "REPLACE_WITH_CLIENT_PRODUCTION_PROJECT_ID"
+region            = "REPLACE_WITH_CLIENT_APPROVED_REGION"
+github_repository = "REPLACE_WITH_OWNER/REPO"
+
+# impersonate_service_account = "rf-production-ci-infra@REPLACE_WITH_CLIENT_PRODUCTION_PROJECT_ID.iam.gserviceaccount.com"
+# billing_account_id          = "billingAccounts/REPLACE"
+
+alert_email_addresses = [
+  # "support-ops@REPLACE_WITH_CLIENT_DOMAIN",
+  # "oncall@REPLACE_WITH_CLIENT_DOMAIN",
+]
+
+# Leave empty until launch is approved. ["allUsers"] makes the Cloud Run URL
+# reachable; Workspace login, invited membership, and RBAC still gate every
+# page and every API route.
+web_invoker_members = [
+]
+
+# uptime_check_host = "support.REPLACE_WITH_CLIENT_DOMAIN"
+
+monthly_budget_amount = 500
+scheduler_time_zone   = "Etc/UTC"
+
+# Retention values are confirmed with the client at C13 before production apply.
+attachment_retention_days = 90
+export_retention_days     = 14
+log_retention_days        = 400

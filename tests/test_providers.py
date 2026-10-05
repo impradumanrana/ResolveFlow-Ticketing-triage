@@ -9,8 +9,13 @@ class FakeCompletions:
 
     def create(self, **kwargs):
         self.calls += 1
-        content = "not-json" if self.calls == 1 else (
-            '{"category":"technical","urgency":"low","confidence":0.91,"queue":"Tier-1 Technical"}'
+        content = (
+            "not-json"
+            if self.calls == 1
+            else (
+                '{"category":"technical","urgency":"low","confidence":0.91,'
+                '"queue":"Tier-1 Technical"}'
+            )
         )
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
@@ -37,13 +42,22 @@ def test_openai_grounded_answer_passes_only_retrieved_evidence_to_model():
                 '"claims":[{"claim":"Use the reset flow.","evidence_key":"E1",'
                 '"support_quote":"Use the reset flow."}],"sufficient_evidence":true}'
             )
-            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+            )
 
     provider.client = SimpleNamespace(chat=SimpleNamespace(completions=GroundedCompletions()))
     provider.model = "test-model"
     result = provider.generate_grounded_answer(
         "I forgot my password",
-        [{"article_id": "KB-001", "title": "Reset", "excerpt": "Use the reset flow.", "source": "Test"}],
+        [
+            {
+                "article_id": "KB-001",
+                "title": "Reset",
+                "excerpt": "Use the reset flow.",
+                "source": "Test",
+            }
+        ],
     )
     assert result["citations"] == ["KB-001"]
     assert captured["response_format"] == {"type": "json_object"}

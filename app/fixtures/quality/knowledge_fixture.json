@@ -1,0 +1,12 @@
+[
+  {"article_id": "KB-001", "title": "Reset a forgotten password", "category": "technical",
+   "excerpt": "Open the sign-in page and choose Forgot password. Enter the email address on the account and follow the link sent to it. The link expires after one hour, and a new link can be requested at any time."},
+  {"article_id": "KB-002", "title": "Set up two-factor authentication", "category": "technical",
+   "excerpt": "Open Security settings and choose Add authenticator. Scan the code with an authenticator application and enter the six-digit code it shows. Recovery codes are issued once and should be stored safely."},
+  {"article_id": "KB-007", "title": "Cancel a subscription", "category": "billing",
+   "excerpt": "Open Billing and choose Cancel subscription. Access continues until the end of the paid period, and no further charges are taken after cancellation."},
+  {"article_id": "KB-012", "title": "Find an invoice or receipt", "category": "billing",
+   "excerpt": "Invoices are listed under Billing history. Each entry can be downloaded as a PDF receipt showing the amount, the date, and the payment method used."},
+  {"article_id": "KB-014", "title": "Change the display name on a profile", "category": "account",
+   "excerpt": "Open Profile settings and edit the display name field. The change appears to teammates immediately and does not affect the sign-in email address."}
+]
